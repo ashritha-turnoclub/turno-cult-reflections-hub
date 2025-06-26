@@ -16,6 +16,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cleanup function to clear auth state
+const cleanupAuthState = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -27,17 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          setUserProfile(profile);
+          // Defer profile fetching to avoid potential deadlocks
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            setUserProfile(profile);
+          }, 0);
         } else {
           setUserProfile(null);
         }
@@ -64,53 +81,89 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: { message: 'Only @turno.club emails are allowed to sign up.' } };
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-        emailRedirectTo: `${window.location.origin}/dashboard`
+    try {
+      // Clean up any existing state
+      cleanupAuthState();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Sign Up Failed",
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: "Account created successfully",
+          description: "You can now sign in with your credentials.",
+        });
       }
-    });
 
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Sign Up Failed",
-        description: error.message,
-      });
-    } else {
-      toast({
-        title: "Check your email",
-        description: "We've sent you a confirmation link.",
-      });
+      return { error };
+    } catch (err: any) {
+      console.error('Sign up error:', err);
+      return { error: err };
     }
-
-    return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
 
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Sign In Failed",
-        description: error.message,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-    }
 
-    return { error };
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Sign In Failed",
+          description: error.message,
+        });
+      } else if (data.user) {
+        toast({
+          title: "Signed in successfully",
+          description: "Welcome back!",
+        });
+        // Force page reload for clean state
+        window.location.href = '/dashboard';
+      }
+
+      return { error };
+    } catch (err: any) {
+      console.error('Sign in error:', err);
+      return { error: err };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Signed out successfully",
-    });
+    try {
+      cleanupAuthState();
+      await supabase.auth.signOut({ scope: 'global' });
+      toast({
+        title: "Signed out successfully",
+      });
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   return (

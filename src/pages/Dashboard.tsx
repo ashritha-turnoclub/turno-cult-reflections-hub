@@ -29,7 +29,6 @@ const Dashboard = () => {
     diaryEntries: 0,
     unreadNotifications: 0
   });
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
 
   useEffect(() => {
@@ -68,9 +67,15 @@ const Dashboard = () => {
           supabase.from('notifications').select('id').eq('recipient_id', userProfile.id).eq('read_flag', false)
         ]);
 
+        const pendingAssignments = await supabase
+          .from('questionnaire_assignments')
+          .select('id')
+          .eq('leader_id', userProfile.id)
+          .is('submitted_at', null);
+
         setStats({
           activeQuestionnaires: assignments.data?.length || 0,
-          pendingResponses: assignments.data?.filter((a: any) => !a.submitted_at).length || 0,
+          pendingResponses: pendingAssignments.data?.length || 0,
           teamMembers: 0,
           diaryEntries: diary.data?.length || 0,
           unreadNotifications: notifications.data?.length || 0
@@ -106,7 +111,9 @@ const Dashboard = () => {
                 <SidebarTrigger />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-                  <p className="text-gray-600">Welcome back, {userProfile?.name}</p>
+                  <p className="text-gray-600">
+                    Welcome back, {userProfile?.name} ({userProfile?.role?.toUpperCase()})
+                  </p>
                 </div>
               </div>
               
@@ -140,7 +147,7 @@ const Dashboard = () => {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Responses</CardTitle>
+                  <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -171,7 +178,7 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.diaryEntries}</div>
-                  <p className="text-xs text-muted-foreground">This month</p>
+                  <p className="text-xs text-muted-foreground">Total entries</p>
                 </CardContent>
               </Card>
             </div>
@@ -208,9 +215,6 @@ const Dashboard = () => {
                       </div>
                     ))
                   )}
-                  <Button variant="ghost" className="w-full" asChild>
-                    <a href="/progress">View All Deadlines</a>
-                  </Button>
                 </CardContent>
               </Card>
 
@@ -222,11 +226,26 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 gap-4">
-                    {userProfile?.role === 'ceo' && (
+                    {userProfile?.role === 'ceo' ? (
+                      <>
+                        <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
+                          <a href="/team">
+                            <Users className="h-6 w-6" />
+                            <span>Manage Team</span>
+                          </a>
+                        </Button>
+                        <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
+                          <a href="/questionnaires">
+                            <FileText className="h-6 w-6" />
+                            <span>Create Questionnaire</span>
+                          </a>
+                        </Button>
+                      </>
+                    ) : (
                       <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
-                        <a href="/questionnaires">
+                        <a href="/assignments">
                           <FileText className="h-6 w-6" />
-                          <span>Create Questionnaire</span>
+                          <span>View Assignments</span>
                         </a>
                       </Button>
                     )}
@@ -236,16 +255,35 @@ const Dashboard = () => {
                         <span>New Diary Entry</span>
                       </a>
                     </Button>
-                    <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
-                      <a href="/progress">
-                        <TrendingUp className="h-6 w-6" />
-                        <span>Add Focus Area</span>
-                      </a>
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
+            
+            {/* Role-specific welcome message */}
+            {userProfile?.role === 'ceo' && (
+              <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+                <CardHeader>
+                  <CardTitle className="text-purple-900">CEO Dashboard</CardTitle>
+                  <CardDescription className="text-purple-700">
+                    As a CEO, you can manage your leadership team, create questionnaires, 
+                    track progress, and gain insights from your team's responses.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            
+            {userProfile?.role === 'leader' && (
+              <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+                <CardHeader>
+                  <CardTitle className="text-green-900">Leader Dashboard</CardTitle>
+                  <CardDescription className="text-green-700">
+                    As a leader, you can complete assigned questionnaires, maintain your private diary, 
+                    track your progress, and receive feedback from your CEO.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
           </div>
         </main>
       </div>

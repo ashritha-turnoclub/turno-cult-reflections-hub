@@ -25,6 +25,7 @@ import {
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/hooks/useAuth';
 
 interface AppSidebarProps {
   userRole?: 'ceo' | 'leader';
@@ -33,6 +34,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ userRole = 'ceo', userName = 'John Doe' }: AppSidebarProps) {
   const [activeItem, setActiveItem] = useState('dashboard');
+  const { signOut } = useAuth();
 
   const ceoMenuItems = [
     {
@@ -108,9 +110,8 @@ export function AppSidebar({ userRole = 'ceo', userName = 'John Doe' }: AppSideb
 
   const menuItems = userRole === 'ceo' ? ceoMenuItems : leaderMenuItems;
 
-  const handleLogout = () => {
-    // Mock logout - in real implementation, this would clear auth state
-    window.location.href = '/';
+  const handleLogout = async () => {
+    await signOut();
   };
 
   return (
