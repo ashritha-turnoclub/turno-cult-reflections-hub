@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from 'react';
 import { AppSidebar } from "@/components/Layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,69 +17,96 @@ import {
   Clock,
   Plus
 } from "lucide-react";
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
-  // Mock data - in real implementation, this would come from Supabase
-  const userRole = 'ceo'; // or 'leader'
-  const userName = 'Sarah Johnson';
-  
-  const stats = {
-    activeQuestionnaires: 3,
-    pendingResponses: 7,
-    teamMembers: 12,
-    diaryEntries: 15
+  const { userProfile } = useAuth();
+  const [stats, setStats] = useState({
+    activeQuestionnaires: 0,
+    pendingResponses: 0,
+    teamMembers: 0,
+    diaryEntries: 0,
+    unreadNotifications: 0
+  });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchDashboardData();
+    }
+  }, [userProfile]);
+
+  const fetchDashboardData = async () => {
+    if (!userProfile) return;
+
+    try {
+      // Fetch stats based on user role
+      if (userProfile.role === 'ceo') {
+        // CEO stats
+        const [questionnaires, assignments, leaders, diary, notifications] = await Promise.all([
+          supabase.from('questionnaires').select('id').eq('created_by', userProfile.id),
+          supabase.from('questionnaire_assignments').select('id').is('submitted_at', null),
+          supabase.from('leaders').select('id').eq('ceo_id', userProfile.id),
+          supabase.from('diary_entries').select('id').eq('user_id', userProfile.id),
+          supabase.from('notifications').select('id').eq('recipient_id', userProfile.id).eq('read_flag', false)
+        ]);
+
+        setStats({
+          activeQuestionnaires: questionnaires.data?.length || 0,
+          pendingResponses: assignments.data?.length || 0,
+          teamMembers: leaders.data?.length || 0,
+          diaryEntries: diary.data?.length || 0,
+          unreadNotifications: notifications.data?.length || 0
+        });
+      } else {
+        // Leader stats
+        const [assignments, diary, notifications] = await Promise.all([
+          supabase.from('questionnaire_assignments').select('id').eq('leader_id', userProfile.id),
+          supabase.from('diary_entries').select('id').eq('user_id', userProfile.id),
+          supabase.from('notifications').select('id').eq('recipient_id', userProfile.id).eq('read_flag', false)
+        ]);
+
+        setStats({
+          activeQuestionnaires: assignments.data?.length || 0,
+          pendingResponses: assignments.data?.filter((a: any) => !a.submitted_at).length || 0,
+          teamMembers: 0,
+          diaryEntries: diary.data?.length || 0,
+          unreadNotifications: notifications.data?.length || 0
+        });
+      }
+
+      // Fetch focus areas for upcoming deadlines
+      const { data: focusAreas } = await supabase
+        .from('focus_areas')
+        .select('*')
+        .eq('user_id', userProfile.id)
+        .not('deadline', 'is', null)
+        .gte('deadline', new Date().toISOString().split('T')[0])
+        .order('deadline', { ascending: true })
+        .limit(3);
+
+      setUpcomingDeadlines(focusAreas || []);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
   };
-
-  const recentActivity = [
-    {
-      type: 'questionnaire',
-      title: 'Q4 Leadership Assessment submitted by Mike Chen',
-      time: '2 hours ago',
-      status: 'new'
-    },
-    {
-      type: 'diary',
-      title: 'New diary entry: Team Retrospective',
-      time: '1 day ago',
-      status: 'completed'
-    },
-    {
-      type: 'feedback',
-      title: 'Feedback added to Q3 Performance Review',
-      time: '2 days ago',
-      status: 'completed'
-    }
-  ];
-
-  const upcomingDeadlines = [
-    {
-      title: 'Q4 Strategy Planning',
-      dueDate: '2024-01-15',
-      progress: 75,
-      type: 'focus-area'
-    },
-    {
-      title: 'Team Performance Reviews',
-      dueDate: '2024-01-20',
-      progress: 45,
-      type: 'questionnaire'
-    }
-  ];
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
-        <AppSidebar userRole={userRole} userName={userName} />
+        <AppSidebar userRole={userProfile?.role} userName={userProfile?.name} />
         
         <main className="flex-1 overflow-auto">
           <div className="p-6 space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <SidebarTrigger />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-                  <p className="text-gray-600">Welcome back, {userName}</p>
+                  <p className="text-gray-600">Welcome back, {userProfile?.name}</p>
                 </div>
               </div>
               
@@ -86,11 +114,9 @@ const Dashboard = () => {
                 <Button variant="ghost" size="sm">
                   <Bell className="h-4 w-4 mr-2" />
                   Notifications
-                  <Badge variant="destructive" className="ml-2">3</Badge>
-                </Button>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Quick Add
+                  {stats.unreadNotifications > 0 && (
+                    <Badge variant="destructive" className="ml-2">{stats.unreadNotifications}</Badge>
+                  )}
                 </Button>
               </div>
             </div>
@@ -99,12 +125,16 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Questionnaires</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    {userProfile?.role === 'ceo' ? 'Active Questionnaires' : 'Assigned Tasks'}
+                  </CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.activeQuestionnaires}</div>
-                  <p className="text-xs text-muted-foreground">+2 from last month</p>
+                  <p className="text-xs text-muted-foreground">
+                    {userProfile?.role === 'ceo' ? 'Created by you' : 'Assigned to you'}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -115,20 +145,24 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.pendingResponses}</div>
-                  <p className="text-xs text-muted-foreground">-3 from yesterday</p>
+                  <p className="text-xs text-muted-foreground">
+                    {userProfile?.role === 'ceo' ? 'Awaiting submission' : 'To complete'}
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.teamMembers}</div>
-                  <p className="text-xs text-muted-foreground">+1 this week</p>
-                </CardContent>
-              </Card>
+              {userProfile?.role === 'ceo' && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.teamMembers}</div>
+                    <p className="text-xs text-muted-foreground">Total leaders</p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -143,85 +177,75 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest updates from your team</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-shrink-0">
-                        {activity.status === 'new' ? (
-                          <div className="h-2 w-2 bg-blue-500 rounded-full mt-2"></div>
-                        ) : (
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-1" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                        <p className="text-xs text-gray-500">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="ghost" className="w-full">View All Activity</Button>
-                </CardContent>
-              </Card>
-
               {/* Upcoming Deadlines */}
               <Card>
                 <CardHeader>
                   <CardTitle>Upcoming Deadlines</CardTitle>
-                  <CardDescription>Tasks and goals requiring attention</CardDescription>
+                  <CardDescription>Focus areas requiring attention</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {upcomingDeadlines.map((deadline, index) => (
-                    <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-gray-900">{deadline.title}</h4>
-                        <Badge variant="outline">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {deadline.dueDate}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">Progress</span>
-                          <span className="font-medium">{deadline.progress}%</span>
-                        </div>
-                        <Progress value={deadline.progress} className="h-2" />
-                      </div>
+                  {upcomingDeadlines.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500">No upcoming deadlines</p>
                     </div>
-                  ))}
-                  <Button variant="ghost" className="w-full">View All Deadlines</Button>
+                  ) : (
+                    upcomingDeadlines.map((deadline) => (
+                      <div key={deadline.id} className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-900">{deadline.title}</h4>
+                          <Badge variant="outline">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {new Date(deadline.deadline).toLocaleDateString()}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Progress</span>
+                            <span className="font-medium">{deadline.progress_percent}%</span>
+                          </div>
+                          <Progress value={deadline.progress_percent} className="h-2" />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <Button variant="ghost" className="w-full" asChild>
+                    <a href="/progress">View All Deadlines</a>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>Common tasks to get you started</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-4">
+                    {userProfile?.role === 'ceo' && (
+                      <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
+                        <a href="/questionnaires">
+                          <FileText className="h-6 w-6" />
+                          <span>Create Questionnaire</span>
+                        </a>
+                      </Button>
+                    )}
+                    <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
+                      <a href="/diary">
+                        <BookOpen className="h-6 w-6" />
+                        <span>New Diary Entry</span>
+                      </a>
+                    </Button>
+                    <Button variant="outline" className="h-16 flex-col space-y-2" asChild>
+                      <a href="/progress">
+                        <TrendingUp className="h-6 w-6" />
+                        <span>Add Focus Area</span>
+                      </a>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common tasks to get you started</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button variant="outline" className="h-20 flex-col space-y-2">
-                    <FileText className="h-6 w-6" />
-                    <span>Create Questionnaire</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col space-y-2">
-                    <BookOpen className="h-6 w-6" />
-                    <span>New Diary Entry</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col space-y-2">
-                    <TrendingUp className="h-6 w-6" />
-                    <span>Add Focus Area</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </main>
       </div>
