@@ -60,7 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               if (error) {
                 console.error('Error fetching user profile:', error);
-                // If profile doesn't exist, user might need to complete signup
                 if (error.code === 'PGRST116') {
                   toast({
                     variant: "destructive",
@@ -122,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Clean up any existing state
       cleanupAuthState();
       
       const { data, error } = await supabase.auth.signUp({
@@ -186,10 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Starting signin process for:', email);
     
     try {
-      // Clean up existing state
       cleanupAuthState();
       
-      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
         console.log('Previous session cleared');
@@ -211,10 +207,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             variant: "destructive",
             title: "Email not confirmed",
             description: "Please check your email and click the confirmation link first.",
-            action: {
-              altText: "Resend confirmation",
-              onClick: () => resendConfirmation(email)
-            }
           });
         } else {
           toast({
@@ -229,7 +221,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           title: "Signed in successfully",
           description: "Welcome back!",
         });
-        // Small delay to ensure profile is loaded
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 500);

@@ -30,6 +30,7 @@ const Dashboard = () => {
     unreadNotifications: 0
   });
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (userProfile) {
@@ -41,7 +42,8 @@ const Dashboard = () => {
     if (!userProfile) return;
 
     try {
-      // Fetch stats based on user role
+      setLoading(true);
+      
       if (userProfile.role === 'ceo') {
         // CEO stats
         const [questionnaires, assignments, leaders, diary, notifications] = await Promise.all([
@@ -96,8 +98,18 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

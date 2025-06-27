@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, Mail, Calendar, CheckCircle } from "lucide-react";
+import { Plus, Users, Mail, Calendar, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ const TeamManagement = () => {
   const { toast } = useToast();
   const [leaders, setLeaders] = useState<any[]>([]);
   const [isAddingLeader, setIsAddingLeader] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [newLeader, setNewLeader] = useState({
     name: '',
     email: '',
@@ -33,20 +34,28 @@ const TeamManagement = () => {
   }, [userProfile]);
 
   const fetchLeaders = async () => {
-    const { data, error } = await supabase
-      .from('leaders')
-      .select('*')
-      .eq('ceo_id', userProfile?.id)
-      .order('invited_at', { ascending: false });
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('leaders')
+        .select('*')
+        .eq('ceo_id', userProfile?.id)
+        .order('invited_at', { ascending: false });
 
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error fetching leaders",
-        description: error.message,
-      });
-    } else {
-      setLeaders(data || []);
+      if (error) {
+        console.error('Error fetching leaders:', error);
+        toast({
+          variant: "destructive",
+          title: "Error fetching leaders",
+          description: error.message,
+        });
+      } else {
+        setLeaders(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchLeaders:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,30 +71,43 @@ const TeamManagement = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('leaders')
-      .insert([{
-        ceo_id: userProfile?.id,
-        name: newLeader.name,
-        email: newLeader.email,
-        role_title: newLeader.role_title,
-        role_description: newLeader.role_description
-      }]);
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('leaders')
+        .insert([{
+          ceo_id: userProfile?.id,
+          name: newLeader.name,
+          email: newLeader.email,
+          role_title: newLeader.role_title,
+          role_description: newLeader.role_description
+        }]);
 
-    if (error) {
+      if (error) {
+        console.error('Error adding leader:', error);
+        toast({
+          variant: "destructive",
+          title: "Error adding leader",
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: "Leader invited successfully",
+          description: `Invitation sent to ${newLeader.email}`,
+        });
+        setNewLeader({ name: '', email: '', role_title: '', role_description: '' });
+        setIsAddingLeader(false);
+        fetchLeaders();
+      }
+    } catch (error) {
+      console.error('Error in handleAddLeader:', error);
       toast({
         variant: "destructive",
-        title: "Error adding leader",
-        description: error.message,
+        title: "Error",
+        description: "Failed to invite leader. Please try again.",
       });
-    } else {
-      toast({
-        title: "Leader invited successfully",
-        description: `Invitation sent to ${newLeader.email}`,
-      });
-      setNewLeader({ name: '', email: '', role_title: '', role_description: '' });
-      setIsAddingLeader(false);
-      fetchLeaders();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,6 +115,7 @@ const TeamManagement = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
           <p className="text-gray-600">Only CEOs can access team management.</p>
         </div>
@@ -118,7 +141,7 @@ const TeamManagement = () => {
               
               <Dialog open={isAddingLeader} onOpenChange={setIsAddingLeader}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button disabled={loading}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Leader
                   </Button>
@@ -127,21 +150,22 @@ const TeamManagement = () => {
                   <DialogHeader>
                     <DialogTitle>Add New Leader</DialogTitle>
                     <DialogDescription>
-                      Invite a new leader to join your team
+                      Invite a new leader to join your team. They will receive an invite and can sign up using their @turno.club email.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddLeader} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="name">Full Name *</Label>
                       <Input
                         id="name"
                         value={newLeader.name}
                         onChange={(e) => setNewLeader({...newLeader, name: e.target.value})}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">Email *</Label>
                       <Input
                         id="email"
                         type="email"
@@ -149,6 +173,7 @@ const TeamManagement = () => {
                         value={newLeader.email}
                         onChange={(e) => setNewLeader({...newLeader, email: e.target.value})}
                         required
+                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -158,6 +183,7 @@ const TeamManagement = () => {
                         placeholder="e.g., Head of Marketing"
                         value={newLeader.role_title}
                         onChange={(e) => setNewLeader({...newLeader, role_title: e.target.value})}
+                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -167,11 +193,19 @@ const TeamManagement = () => {
                         placeholder="Brief description of responsibilities..."
                         value={newLeader.role_description}
                         onChange={(e) => setNewLeader({...newLeader, role_description: e.target.value})}
+                        disabled={loading}
                       />
                     </div>
                     <div className="flex space-x-2">
-                      <Button type="submit" className="flex-1">Send Invitation</Button>
-                      <Button type="button" variant="outline" onClick={() => setIsAddingLeader(false)}>
+                      <Button type="submit" className="flex-1" disabled={loading}>
+                        {loading ? "Sending..." : "Send Invitation"}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setIsAddingLeader(false)}
+                        disabled={loading}
+                      >
                         Cancel
                       </Button>
                     </div>
@@ -181,7 +215,13 @@ const TeamManagement = () => {
             </div>
 
             <div className="grid gap-6">
-              {leaders.length === 0 ? (
+              {loading && leaders.length === 0 ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  </CardContent>
+                </Card>
+              ) : leaders.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Users className="h-12 w-12 text-gray-400 mb-4" />
