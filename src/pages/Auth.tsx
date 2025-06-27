@@ -1,23 +1,33 @@
 
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Brain, Mail, Lock, User } from "lucide-react";
+import { Brain, Mail, Lock, User, CheckCircle } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 
 const Auth = () => {
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, resendConfirmation } = useAuth();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  if (user) {
+  // Check if user came from email confirmation
+  useEffect(() => {
+    if (searchParams.get('confirmed') === 'true') {
+      setShowConfirmation(true);
+      setTimeout(() => setShowConfirmation(false), 5000);
+    }
+  }, [searchParams]);
+
+  if (user && user.email_confirmed_at) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -38,6 +48,14 @@ const Auth = () => {
     setIsLoading(false);
   };
 
+  const handleResendConfirmation = async () => {
+    if (email) {
+      setIsLoading(true);
+      await resendConfirmation(email);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -52,6 +70,15 @@ const Auth = () => {
           </h1>
           <p className="text-gray-300">Reflective Leadership Tracker</p>
         </div>
+
+        {showConfirmation && (
+          <Alert className="mb-6 bg-green-500/10 border-green-500/20">
+            <CheckCircle className="h-4 w-4 text-green-400" />
+            <AlertDescription className="text-green-300">
+              Your email has been confirmed! You can now sign in to your account.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="bg-white/5 backdrop-blur-sm border-white/10">
           <CardHeader className="text-center">
@@ -104,6 +131,18 @@ const Auth = () => {
                   <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700" disabled={isLoading}>
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
+
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={handleResendConfirmation}
+                      className="text-purple-300 hover:text-purple-200"
+                      disabled={!email}
+                    >
+                      Haven't confirmed your email? Resend confirmation
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
               

@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  resendConfirmation: (email: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,8 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          // Defer profile fetching to avoid potential deadlocks
+        if (session?.user && session.user.email_confirmed_at) {
+          // Only fetch profile for confirmed users
           setTimeout(async () => {
             try {
               const { data: profile, error } = await supabase
@@ -59,6 +60,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               if (error) {
                 console.error('Error fetching user profile:', error);
+                // If profile doesn't exist, user might need to complete signup
+                if (error.code === 'PGRST116') {
+                  toast({
+                    variant: "destructive",
+                    title: "Profile not found",
+                    description: "Please complete your registration process.",
+                  });
+                }
               } else {
                 console.log('User profile loaded:', profile);
                 setUserProfile(profile);
@@ -77,13 +86,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session?.user?.email || 'No session');
+      if (session && !session.user.email_confirmed_at) {
+        console.log('User email not confirmed yet');
+        toast({
+          variant: "destructive",
+          title: "Email confirmation required",
+          description: "Please check your email and click the confirmation link before signing in.",
+        });
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [toast]);
 
   const validateEmail = (email: string) => {
     const isValid = email.endsWith('@turno.club');
@@ -113,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         options: {
           data: { name },
-          emailRedirectTo: `${window.location.origin}/dashboard`
+          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`
         }
       });
 
@@ -121,21 +138,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Signup error:', error);
-        toast({
-          variant: "destructive",
-          title: "Sign Up Failed",
-          description: error.message,
-        });
+        if (error.message.includes('rate limit')) {
+          toast({
+            variant: "destructive",
+            title: "Too many attempts",
+            description: "Please wait a moment before trying again.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: error.message,
+          });
+        }
       } else if (data.user) {
-        console.log('Signup successful for:', data.user.email);
-        toast({
-          title: "Account created successfully",
-          description: "Welcome! You can now access your dashboard.",
-        });
-        // Small delay to ensure profile is created
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1000);
+        if (data.user.email_confirmed_at) {
+          console.log('Signup successful and confirmed for:', data.user.email);
+          toast({
+            title: "Account created successfully",
+            description: "Welcome! You can now access your dashboard.",
+          });
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1000);
+        } else {
+          console.log('Signup successful, awaiting confirmation for:', data.user.email);
+          toast({
+            title: "Check your email",
+            description: "We've sent you a confirmation link. Please click it to activate your account.",
+          });
+        }
       }
 
       return { error };
@@ -174,12 +206,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Signin error:', error);
-        toast({
-          variant: "destructive",
-          title: "Sign In Failed",
-          description: error.message,
-        });
-      } else if (data.user) {
+        if (error.message.includes('Email not confirmed')) {
+          toast({
+            variant: "destructive",
+            title: "Email not confirmed",
+            description: "Please check your email and click the confirmation link first.",
+            action: {
+              altText: "Resend confirmation",
+              onClick: () => resendConfirmation(email)
+            }
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Sign In Failed",
+            description: error.message,
+          });
+        }
+      } else if (data.user && data.session) {
         console.log('Signin successful for:', data.user.email);
         toast({
           title: "Signed in successfully",
@@ -198,6 +242,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: "destructive",
         title: "Sign In Failed",
         description: "An unexpected error occurred. Please try again.",
+      });
+      return { error: err };
+    }
+  };
+
+  const resendConfirmation = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`
+        }
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Failed to resend",
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: "Confirmation email sent",
+          description: "Please check your email for the confirmation link.",
+        });
+      }
+
+      return { error };
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to resend confirmation email.",
       });
       return { error: err };
     }
@@ -230,7 +308,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signUp,
       signIn,
-      signOut
+      signOut,
+      resendConfirmation
     }}>
       {children}
     </AuthContext.Provider>
