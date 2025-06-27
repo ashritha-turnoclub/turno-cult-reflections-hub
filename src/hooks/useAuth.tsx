@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('Setting up auth state listener...');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -48,13 +50,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           // Defer profile fetching to avoid potential deadlocks
           setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            setUserProfile(profile);
-          }, 0);
+            try {
+              const { data: profile, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (error) {
+                console.error('Error fetching user profile:', error);
+              } else {
+                console.log('User profile loaded:', profile);
+                setUserProfile(profile);
+              }
+            } catch (err) {
+              console.error('Profile fetch error:', err);
+            }
+          }, 100);
         } else {
           setUserProfile(null);
         }
@@ -64,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email || 'No session');
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) setLoading(false);
@@ -73,12 +86,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const validateEmail = (email: string) => {
-    return email.endsWith('@turno.club');
+    const isValid = email.endsWith('@turno.club');
+    console.log('Email validation:', email, 'Valid:', isValid);
+    return isValid;
   };
 
   const signUp = async (email: string, password: string, name: string) => {
+    console.log('Starting signup process for:', email);
+    
     if (!validateEmail(email)) {
-      return { error: { message: 'Only @turno.club emails are allowed to sign up.' } };
+      const error = { message: 'Only @turno.club emails are allowed to sign up.' };
+      toast({
+        variant: "destructive",
+        title: "Sign Up Failed",
+        description: error.message,
+      });
+      return { error };
     }
 
     try {
@@ -94,27 +117,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
+      console.log('Signup response:', { data, error });
+
       if (error) {
+        console.error('Signup error:', error);
         toast({
           variant: "destructive",
           title: "Sign Up Failed",
           description: error.message,
         });
-      } else {
+      } else if (data.user) {
+        console.log('Signup successful for:', data.user.email);
         toast({
           title: "Account created successfully",
-          description: "You can now sign in with your credentials.",
+          description: "Welcome! You can now access your dashboard.",
         });
+        // Small delay to ensure profile is created
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1000);
       }
 
       return { error };
     } catch (err: any) {
       console.error('Sign up error:', err);
+      toast({
+        variant: "destructive",
+        title: "Sign Up Failed",
+        description: "An unexpected error occurred. Please try again.",
+      });
       return { error: err };
     }
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Starting signin process for:', email);
+    
     try {
       // Clean up existing state
       cleanupAuthState();
@@ -122,8 +160,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
+        console.log('Previous session cleared');
       } catch (err) {
-        // Continue even if this fails
+        console.log('No previous session to clear');
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -131,29 +170,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password
       });
 
+      console.log('Signin response:', { data, error });
+
       if (error) {
+        console.error('Signin error:', error);
         toast({
           variant: "destructive",
           title: "Sign In Failed",
           description: error.message,
         });
       } else if (data.user) {
+        console.log('Signin successful for:', data.user.email);
         toast({
           title: "Signed in successfully",
           description: "Welcome back!",
         });
-        // Force page reload for clean state
-        window.location.href = '/dashboard';
+        // Small delay to ensure profile is loaded
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
       }
 
       return { error };
     } catch (err: any) {
       console.error('Sign in error:', err);
+      toast({
+        variant: "destructive",
+        title: "Sign In Failed",
+        description: "An unexpected error occurred. Please try again.",
+      });
       return { error: err };
     }
   };
 
   const signOut = async () => {
+    console.log('Starting signout process...');
     try {
       cleanupAuthState();
       await supabase.auth.signOut({ scope: 'global' });
@@ -163,6 +214,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
+      toast({
+        variant: "destructive",
+        title: "Sign Out Error",
+        description: "There was an issue signing out. Please try again.",
+      });
     }
   };
 

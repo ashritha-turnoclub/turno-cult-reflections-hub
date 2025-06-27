@@ -439,6 +439,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
       notification_type: "assignment" | "feedback" | "submission" | "invitation"
