@@ -9,6 +9,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_summaries: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          quarter: string | null
+          type: string
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          quarter?: string | null
+          type: string
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          quarter?: string | null
+          type?: string
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_summaries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       answers: {
         Row: {
           answer_text: string | null
@@ -407,6 +445,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          password: string | null
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
@@ -414,6 +453,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          password?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
@@ -421,6 +461,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          password?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []

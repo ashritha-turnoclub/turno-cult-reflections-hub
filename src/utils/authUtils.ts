@@ -13,8 +13,10 @@ export const cleanupAuthState = () => {
   });
 };
 
+// Remove email validation - now accepts any valid email format
 export const validateEmail = (email: string) => {
-  const isValid = email.endsWith('@turno.club');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isValid = emailRegex.test(email);
   console.log('Email validation:', email, 'Valid:', isValid);
   return isValid;
 };

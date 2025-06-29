@@ -6,11 +6,11 @@ import { cleanupAuthState, validateEmail } from '@/utils/authUtils';
 export const useAuthActions = () => {
   const { toast } = useToast();
 
-  const signUp = async (email: string, password: string, name: string) => {
-    console.log('Starting signup process for:', email);
+  const signUp = async (email: string, password: string, name: string, role: 'ceo' | 'leader' = 'leader') => {
+    console.log('Starting signup process for:', email, 'with role:', role);
     
     if (!validateEmail(email)) {
-      const error = { message: 'Only @turno.club emails are allowed to sign up.' };
+      const error = { message: 'Please enter a valid email address.' };
       toast({
         variant: "destructive",
         title: "Sign Up Failed",
@@ -26,7 +26,10 @@ export const useAuthActions = () => {
         email,
         password,
         options: {
-          data: { name },
+          data: { 
+            name,
+            role // Pass role in metadata for the trigger function
+          },
           emailRedirectTo: `${window.location.origin}/auth?confirmed=true`
         }
       });

@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Brain, Mail, Lock, User, CheckCircle } from "lucide-react";
+import { Brain, Mail, Lock, User, CheckCircle, UserCheck } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 
 const Auth = () => {
@@ -16,6 +17,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'ceo' | 'leader'>('leader');
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -34,7 +36,7 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await signUp(email, password, name);
+    await signUp(email, password, name, role);
     setIsLoading(false);
   };
 
@@ -103,7 +105,7 @@ const Auth = () => {
                       <Input
                         id="signin-email"
                         type="email"
-                        placeholder="your.name@turno.club"
+                        placeholder="your.email@company.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
@@ -148,13 +150,6 @@ const Auth = () => {
               
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  <Alert className="bg-blue-500/10 border-blue-500/20">
-                    <Mail className="h-4 w-4 text-blue-400" />
-                    <AlertDescription className="text-blue-300">
-                      Only @turno.club email addresses are allowed to sign up.
-                    </AlertDescription>
-                  </Alert>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="signup-name" className="text-white">Full Name</Label>
                     <div className="relative">
@@ -178,12 +173,28 @@ const Auth = () => {
                       <Input
                         id="signup-email"
                         type="email"
-                        placeholder="your.name@turno.club"
+                        placeholder="your.email@company.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                         required
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-role" className="text-white">Role</Label>
+                    <div className="relative">
+                      <UserCheck className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                      <Select value={role} onValueChange={(value: 'ceo' | 'leader') => setRole(value)}>
+                        <SelectTrigger className="pl-10 bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="leader">Leader</SelectItem>
+                          <SelectItem value="ceo">CEO</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   
