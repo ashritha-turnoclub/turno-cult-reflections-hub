@@ -54,6 +54,27 @@ export const useAuthActions = () => {
       } else if (data.user) {
         if (data.user.email_confirmed_at) {
           console.log('Signup successful and confirmed for:', data.user.email);
+          
+          // Manually insert user into users table if auto-trigger failed
+          try {
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: data.user.id,
+                email: data.user.email!,
+                name: name,
+                role: role
+              });
+            
+            if (insertError) {
+              console.error('Manual user insert error:', insertError);
+            } else {
+              console.log('User manually inserted into users table');
+            }
+          } catch (insertErr) {
+            console.error('Manual insert failed:', insertErr);
+          }
+          
           toast({
             title: "Account created successfully",
             description: "Welcome! You can now access your dashboard.",

@@ -25,24 +25,45 @@ export const useAuthState = () => {
           // Only fetch profile for confirmed users
           setTimeout(async () => {
             try {
-              const { data: profile, error } = await supabase
+              // First, check if user exists in users table
+              const { data: existingUser, error: checkError } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
               
-              if (error) {
-                console.error('Error fetching user profile:', error);
-                if (error.code === 'PGRST116') {
+              if (checkError) {
+                console.error('Error checking user profile:', checkError);
+              }
+              
+              // If user doesn't exist in users table, create them
+              if (!existingUser && session.user.user_metadata) {
+                console.log('User not found in users table, creating entry...');
+                const { data: newUser, error: insertError } = await supabase
+                  .from('users')
+                  .insert({
+                    id: session.user.id,
+                    email: session.user.email!,
+                    name: session.user.user_metadata.name || session.user.email!.split('@')[0],
+                    role: session.user.user_metadata.role || 'leader'
+                  })
+                  .select()
+                  .single();
+                
+                if (insertError) {
+                  console.error('Error creating user profile:', insertError);
                   toast({
                     variant: "destructive",
-                    title: "Profile not found",
-                    description: "Please complete your registration process.",
+                    title: "Profile creation error",
+                    description: "There was an issue creating your profile. Please try signing in again.",
                   });
+                } else {
+                  console.log('User profile created successfully:', newUser);
+                  setUserProfile(newUser);
                 }
-              } else {
-                console.log('User profile loaded:', profile);
-                setUserProfile(profile);
+              } else if (existingUser) {
+                console.log('User profile loaded:', existingUser);
+                setUserProfile(existingUser);
               }
             } catch (err) {
               console.error('Profile fetch error:', err);
