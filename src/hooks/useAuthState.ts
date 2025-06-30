@@ -32,41 +32,66 @@ export const useAuthState = () => {
                 .eq('id', session.user.id)
                 .maybeSingle();
               
-              if (checkError) {
+              if (checkError && checkError.code !== 'PGRST116') {
                 console.error('Error checking user profile:', checkError);
               }
               
               // If user doesn't exist in users table, create them
-              if (!existingUser && session.user.user_metadata) {
+              if (!existingUser) {
                 console.log('User not found in users table, creating entry...');
+                
+                // Get role from metadata or default to leader
+                const userRole = session.user.user_metadata?.role || 'leader';
+                const userName = session.user.user_metadata?.name || session.user.email!.split('@')[0];
+                
                 const { data: newUser, error: insertError } = await supabase
                   .from('users')
                   .insert({
                     id: session.user.id,
                     email: session.user.email!,
-                    name: session.user.user_metadata.name || session.user.email!.split('@')[0],
-                    role: session.user.user_metadata.role || 'leader'
+                    name: userName,
+                    role: userRole
                   })
                   .select()
                   .single();
                 
                 if (insertError) {
                   console.error('Error creating user profile:', insertError);
-                  toast({
-                    variant: "destructive",
-                    title: "Profile creation error",
-                    description: "There was an issue creating your profile. Please try signing in again.",
-                  });
+                  // Try to handle the error gracefully
+                  if (insertError.code === '23505') {
+                    // User already exists, try to fetch again
+                    const { data: retryUser } = await supabase
+                      .from('users')
+                      .select('*')
+                      .eq('id', session.user.id)
+                      .single();
+                    
+                    if (retryUser) {
+                      console.log('User profile found on retry:', retryUser);
+                      setUserProfile(retryUser);
+                    }
+                  } else {
+                    toast({
+                      variant: "destructive",
+                      title: "Profile creation error",
+                      description: "There was an issue creating your profile. Please refresh the page.",
+                    });
+                  }
                 } else {
                   console.log('User profile created successfully:', newUser);
                   setUserProfile(newUser);
                 }
-              } else if (existingUser) {
+              } else {
                 console.log('User profile loaded:', existingUser);
                 setUserProfile(existingUser);
               }
             } catch (err) {
               console.error('Profile fetch error:', err);
+              toast({
+                variant: "destructive",
+                title: "Profile error",
+                description: "Unable to load your profile. Please refresh the page.",
+              });
             }
           }, 100);
         } else {

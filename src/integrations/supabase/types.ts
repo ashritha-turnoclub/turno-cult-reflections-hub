@@ -489,7 +489,13 @@ export type Database = {
       }
     }
     Enums: {
-      notification_type: "assignment" | "feedback" | "submission" | "invitation"
+      notification_type:
+        | "assignment"
+        | "feedback"
+        | "submission"
+        | "invitation"
+        | "questionnaire_assigned"
+        | "leader_joined"
       quarter_type: "Q1" | "Q2" | "Q3" | "Q4"
       user_role: "ceo" | "leader"
     }
@@ -607,7 +613,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      notification_type: ["assignment", "feedback", "submission", "invitation"],
+      notification_type: [
+        "assignment",
+        "feedback",
+        "submission",
+        "invitation",
+        "questionnaire_assigned",
+        "leader_joined",
+      ],
       quarter_type: ["Q1", "Q2", "Q3", "Q4"],
       user_role: ["ceo", "leader"],
     },
