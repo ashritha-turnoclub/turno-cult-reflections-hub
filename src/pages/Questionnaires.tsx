@@ -1,9 +1,11 @@
 
 import { AppSidebar } from "@/components/Layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/hooks/useAuth';
 import { QuestionnaireBuilder } from '@/components/Questionnaires/QuestionnaireBuilder';
 import { LeaderQuestionnaires } from '@/components/Questionnaires/LeaderQuestionnaires';
+import { ResponseReview } from '@/components/Questionnaires/ResponseReview';
 
 const Questionnaires = () => {
   const { userProfile } = useAuth();
@@ -29,7 +31,20 @@ const Questionnaires = () => {
             </div>
 
             {userProfile?.role === 'ceo' ? (
-              <QuestionnaireBuilder />
+              <Tabs defaultValue="builder" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="builder">Questionnaire Builder</TabsTrigger>
+                  <TabsTrigger value="responses">Review Responses</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="builder">
+                  <QuestionnaireBuilder />
+                </TabsContent>
+                
+                <TabsContent value="responses">
+                  <ResponseReview />
+                </TabsContent>
+              </Tabs>
             ) : (
               <LeaderQuestionnaires />
             )}

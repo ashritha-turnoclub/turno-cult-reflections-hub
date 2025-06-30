@@ -41,6 +41,10 @@ ALTER TABLE public.leaders
 ADD CONSTRAINT leaders_ceo_id_fkey 
 FOREIGN KEY (ceo_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
+-- Update notification enum to include questionnaire_assigned
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'questionnaire_assigned';
+ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'leader_joined';
+
 -- Create function to automatically assign questionnaire to all leaders when published
 CREATE OR REPLACE FUNCTION public.auto_assign_questionnaire()
 RETURNS TRIGGER AS $$

@@ -25,7 +25,7 @@ interface Questionnaire {
   id?: string;
   title: string;
   description: string;
-  quarter: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
   year: number;
   deadline: string;
   published: boolean;
@@ -94,7 +94,12 @@ export const QuestionnaireBuilder = () => {
       const { data, error } = await supabase
         .from('questionnaires')
         .insert([{
-          ...newQuestionnaire,
+          title: newQuestionnaire.title,
+          description: newQuestionnaire.description,
+          quarter: newQuestionnaire.quarter,
+          year: newQuestionnaire.year,
+          deadline: newQuestionnaire.deadline,
+          published: false,
           created_by: userProfile?.id
         }])
         .select()
@@ -138,7 +143,10 @@ export const QuestionnaireBuilder = () => {
       const { error } = await supabase
         .from('questions')
         .insert([{
-          ...newQuestion,
+          question_title: newQuestion.question_title,
+          question_detail: newQuestion.question_detail,
+          section: newQuestion.section,
+          order_index: newQuestion.order_index,
           questionnaire_id: selectedQuestionnaire.id
         }]);
 
@@ -248,7 +256,7 @@ export const QuestionnaireBuilder = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="quarter">Quarter *</Label>
-                  <Select value={newQuestionnaire.quarter} onValueChange={(value) => setNewQuestionnaire({...newQuestionnaire, quarter: value})}>
+                  <Select value={newQuestionnaire.quarter} onValueChange={(value: 'Q1' | 'Q2' | 'Q3' | 'Q4') => setNewQuestionnaire({...newQuestionnaire, quarter: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
