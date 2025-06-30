@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import TeamManagement from "./pages/TeamManagement";
 import Questionnaires from "./pages/Questionnaires";
 import Diary from "./pages/Diary";
+import ProgressTracker from "./pages/ProgressTracker";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,11 @@ const App = () => (
             <Route path="/diary" element={
               <ProtectedRoute>
                 <Diary />
+              </ProtectedRoute>
+            } />
+            <Route path="/progress" element={
+              <ProtectedRoute>
+                <ProgressTracker />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
