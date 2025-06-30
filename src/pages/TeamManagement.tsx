@@ -36,24 +36,41 @@ const TeamManagement = () => {
   const fetchLeaders = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // Fetch both invited leaders and actual users who have joined
+      const { data: leadersData, error: leadersError } = await supabase
         .from('leaders')
         .select('*')
         .eq('ceo_id', userProfile?.id)
         .order('invited_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching leaders:', error);
-        toast({
-          variant: "destructive",
-          title: "Error fetching leaders",
-          description: error.message,
-        });
-      } else {
-        setLeaders(data || []);
-      }
+      if (leadersError) throw leadersError;
+
+      // For each leader, check if they have a user account
+      const leadersWithStatus = await Promise.all(
+        (leadersData || []).map(async (leader) => {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id, name, email, created_at')
+            .eq('email', leader.email)
+            .eq('role', 'leader')
+            .maybeSingle();
+
+          return {
+            ...leader,
+            user: userData,
+            status: userData ? 'active' : 'pending'
+          };
+        })
+      );
+
+      setLeaders(leadersWithStatus);
     } catch (error) {
-      console.error('Error in fetchLeaders:', error);
+      console.error('Error fetching leaders:', error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching leaders",
+        description: "Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -62,17 +79,26 @@ const TeamManagement = () => {
   const handleAddLeader = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newLeader.email.endsWith('@turno.club')) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Email",
-        description: "Only @turno.club emails are allowed.",
-      });
-      return;
-    }
-
     try {
       setLoading(true);
+      
+      // Check if leader already exists
+      const { data: existingLeader } = await supabase
+        .from('leaders')
+        .select('id')
+        .eq('email', newLeader.email)
+        .eq('ceo_id', userProfile?.id)
+        .maybeSingle();
+
+      if (existingLeader) {
+        toast({
+          variant: "destructive",
+          title: "Leader already invited",
+          description: "This email has already been invited to your team.",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('leaders')
         .insert([{
@@ -83,28 +109,22 @@ const TeamManagement = () => {
           role_description: newLeader.role_description
         }]);
 
-      if (error) {
-        console.error('Error adding leader:', error);
-        toast({
-          variant: "destructive",
-          title: "Error adding leader",
-          description: error.message,
-        });
-      } else {
-        toast({
-          title: "Leader invited successfully",
-          description: `Invitation sent to ${newLeader.email}`,
-        });
-        setNewLeader({ name: '', email: '', role_title: '', role_description: '' });
-        setIsAddingLeader(false);
-        fetchLeaders();
-      }
+      if (error) throw error;
+
+      toast({
+        title: "Leader invited successfully",
+        description: `${newLeader.name} can now sign up using ${newLeader.email} and will automatically join your team.`,
+      });
+      
+      setNewLeader({ name: '', email: '', role_title: '', role_description: '' });
+      setIsAddingLeader(false);
+      fetchLeaders();
     } catch (error) {
-      console.error('Error in handleAddLeader:', error);
+      console.error('Error adding leader:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to invite leader. Please try again.",
+        title: "Error inviting leader",
+        description: "Please try again.",
       });
     } finally {
       setLoading(false);
@@ -135,7 +155,7 @@ const TeamManagement = () => {
                 <SidebarTrigger />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
-                  <p className="text-gray-600">Manage your leadership team</p>
+                  <p className="text-gray-600">Manage your leadership team and track their progress</p>
                 </div>
               </div>
               
@@ -143,14 +163,14 @@ const TeamManagement = () => {
                 <DialogTrigger asChild>
                   <Button disabled={loading}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Leader
+                    Invite Leader
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add New Leader</DialogTitle>
+                    <DialogTitle>Invite New Leader</DialogTitle>
                     <DialogDescription>
-                      Invite a new leader to join your team. They will receive an invite and can sign up using their @turno.club email.
+                      Add a new leader to your team. They'll be able to sign up and automatically join your organization.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddLeader} className="space-y-4">
@@ -165,11 +185,11 @@ const TeamManagement = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
+                      <Label htmlFor="email">Email Address *</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="leader@turno.club"
+                        placeholder="leader@company.com"
                         value={newLeader.email}
                         onChange={(e) => setNewLeader({...newLeader, email: e.target.value})}
                         required
@@ -231,7 +251,7 @@ const TeamManagement = () => {
                     </p>
                     <Button onClick={() => setIsAddingLeader(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add First Leader
+                      Invite First Leader
                     </Button>
                   </CardContent>
                 </Card>
@@ -242,9 +262,18 @@ const TeamManagement = () => {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">{leader.name}</CardTitle>
-                          <Badge variant={leader.accepted_at ? "default" : "secondary"}>
-                            {leader.accepted_at ? <CheckCircle className="h-3 w-3 mr-1" /> : <Calendar className="h-3 w-3 mr-1" />}
-                            {leader.accepted_at ? "Active" : "Pending"}
+                          <Badge variant={leader.status === 'active' ? "default" : "secondary"}>
+                            {leader.status === 'active' ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Active
+                              </>
+                            ) : (
+                              <>
+                                <Calendar className="h-3 w-3 mr-1" />
+                                Pending
+                              </>
+                            )}
                           </Badge>
                         </div>
                         <CardDescription className="flex items-center">
@@ -265,8 +294,13 @@ const TeamManagement = () => {
                             <p className="text-sm text-gray-600">{leader.role_description}</p>
                           </div>
                         )}
-                        <div className="text-xs text-gray-500">
-                          Invited {new Date(leader.invited_at).toLocaleDateString()}
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>Invited: {new Date(leader.invited_at).toLocaleDateString()}</div>
+                          {leader.user && (
+                            <div className="text-green-600">
+                              ✓ Joined: {new Date(leader.user.created_at).toLocaleDateString()}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

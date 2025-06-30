@@ -368,6 +368,7 @@ export type Database = {
           created_at: string
           created_by: string
           deadline: string
+          description: string | null
           id: string
           published: boolean
           quarter: Database["public"]["Enums"]["quarter_type"]
@@ -378,6 +379,7 @@ export type Database = {
           created_at?: string
           created_by: string
           deadline: string
+          description?: string | null
           id?: string
           published?: boolean
           quarter: Database["public"]["Enums"]["quarter_type"]
@@ -388,6 +390,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           deadline?: string
+          description?: string | null
           id?: string
           published?: boolean
           quarter?: Database["public"]["Enums"]["quarter_type"]
