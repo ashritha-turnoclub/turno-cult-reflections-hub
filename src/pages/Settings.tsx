@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User, Lock, Settings as SettingsIcon, Save, KeyRound } from "lucide-react";
+import { User, Lock, Save, KeyRound } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,6 @@ const Settings = () => {
     email: ''
   });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
@@ -62,12 +61,22 @@ const Settings = () => {
         });
 
         if (emailError) throw emailError;
+
+        toast({
+          title: "Profile Updated",
+          description: "Please check your email to confirm the new email address.",
+        });
+      } else {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been updated successfully.",
+        });
       }
 
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
+      // Refresh the page to reflect changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
 
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -93,6 +102,15 @@ const Settings = () => {
       return;
     }
 
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Password must be at least 6 characters long.",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -109,7 +127,6 @@ const Settings = () => {
 
       setShowChangePassword(false);
       setPasswordData({
-        currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
@@ -223,7 +240,7 @@ const Settings = () => {
                         <div>
                           <h4 className="font-medium">Password</h4>
                           <p className="text-sm text-gray-500">
-                            Last changed: {new Date().toLocaleDateString()}
+                            Keep your account secure with a strong password
                           </p>
                         </div>
                         <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
@@ -250,6 +267,7 @@ const Settings = () => {
                                   onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                                   placeholder="Enter new password"
                                   required
+                                  minLength={6}
                                 />
                               </div>
                               
@@ -262,6 +280,7 @@ const Settings = () => {
                                   onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                                   placeholder="Confirm new password"
                                   required
+                                  minLength={6}
                                 />
                               </div>
                               

@@ -1,14 +1,14 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Calendar, FileText, Send, CheckCircle } from "lucide-react";
+import { Calendar, FileText, Send, CheckCircle, MessageCircle } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { QuestionnaireComments } from './QuestionnaireComments';
 
 interface Assignment {
   id: string;
@@ -22,6 +22,7 @@ interface Assignment {
     year: number;
     deadline: string;
   };
+  comment_count?: number;
 }
 
 interface Question {
@@ -60,13 +61,20 @@ export const LeaderQuestionnaires = () => {
         .from('questionnaire_assignments')
         .select(`
           *,
-          questionnaires(*)
+          questionnaires(*),
+          feedback_comments(count)
         `)
         .eq('leader_id', userProfile?.id)
         .order('assigned_at', { ascending: false });
 
       if (error) throw error;
-      setAssignments(data || []);
+      
+      const assignmentsWithComments = (data || []).map(assignment => ({
+        ...assignment,
+        comment_count: assignment.feedback_comments?.length || 0
+      }));
+      
+      setAssignments(assignmentsWithComments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toast({
@@ -242,16 +250,24 @@ export const LeaderQuestionnaires = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{assignment.questionnaires.title}</CardTitle>
-                    <Badge variant={assignment.submitted_at ? "default" : "destructive"}>
-                      {assignment.submitted_at ? (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Completed
-                        </>
-                      ) : (
-                        "Pending"
+                    <div className="flex items-center space-x-2">
+                      {assignment.submitted_at && assignment.comment_count > 0 && (
+                        <Badge variant="secondary" className="flex items-center">
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          {assignment.comment_count} comments
+                        </Badge>
                       )}
-                    </Badge>
+                      <Badge variant={assignment.submitted_at ? "default" : "destructive"}>
+                        {assignment.submitted_at ? (
+                          <>
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Completed
+                          </>
+                        ) : (
+                          "Pending"
+                        )}
+                      </Badge>
+                    </div>
                   </div>
                   <CardDescription>
                     {assignment.questionnaires.quarter} {assignment.questionnaires.year}
@@ -357,6 +373,12 @@ export const LeaderQuestionnaires = () => {
           </CardContent>
         </Card>
       ))}
+
+      {/* Comments Section */}
+      <QuestionnaireComments 
+        assignmentId={selectedAssignment.id}
+        isSubmitted={!!selectedAssignment.submitted_at}
+      />
 
       {/* Action Buttons */}
       {!selectedAssignment.submitted_at && (

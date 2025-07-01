@@ -50,12 +50,13 @@ export const DiaryList = ({ searchTerm, selectedCategory, onEditEntry, refreshKe
 
       if (error) throw error;
 
-      // Transform data to match our interface
-      const transformedEntries = data?.map(entry => ({
+      // Transform data to handle checklist properly
+      const transformedEntries: DiaryEntry[] = (data || []).map(entry => ({
         ...entry,
-        checklist: Array.isArray(entry.checklist) ? entry.checklist : 
-                  typeof entry.checklist === 'string' ? [entry.checklist] : []
-      })) || [];
+        checklist: Array.isArray(entry.checklist) 
+          ? entry.checklist.filter((item): item is string => typeof item === 'string')
+          : []
+      }));
 
       setEntries(transformedEntries);
     } catch (error) {
