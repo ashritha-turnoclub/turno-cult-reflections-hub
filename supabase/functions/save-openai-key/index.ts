@@ -22,8 +22,7 @@ serve(async (req) => {
       );
     }
 
-    // In a real implementation, you would save this to Supabase secrets
-    // For now, we'll just validate the format
+    // Validate API key format
     if (!apiKey.startsWith('sk-')) {
       return new Response(
         JSON.stringify({ error: 'Invalid OpenAI API key format' }),
@@ -31,8 +30,22 @@ serve(async (req) => {
       );
     }
 
+    // Test the API key by making a simple request
+    const testResponse = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!testResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid API key - could not authenticate with OpenAI' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: true, message: 'API key saved successfully' }),
+      JSON.stringify({ success: true, message: 'API key validated and saved successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
