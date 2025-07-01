@@ -203,13 +203,13 @@ export const DashboardMetrics = () => {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Responses</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Diary Entries</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.completedResponses}</div>
+                <div className="text-2xl font-bold">{data.diaryEntries}</div>
                 <p className="text-xs text-muted-foreground">
-                  Submitted responses
+                  Total entries
                 </p>
               </CardContent>
             </Card>
@@ -218,7 +218,7 @@ export const DashboardMetrics = () => {
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Assigned Questionnaires</CardTitle>
+                <CardTitle className="text-sm font-medium">Questionnaires</CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -257,13 +257,13 @@ export const DashboardMetrics = () => {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Focus Areas</CardTitle>
+                <CardTitle className="text-sm font-medium">Diary Entries</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.focusAreas?.length || 0}</div>
+                <div className="text-2xl font-bold">{data.diaryEntries}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active goals
+                  Total entries
                 </p>
               </CardContent>
             </Card>
@@ -278,7 +278,7 @@ export const DashboardMetrics = () => {
             <CardTitle>Focus Areas</CardTitle>
             <CardDescription>Your current goals and progress</CardDescription>
           </div>
-          <Button onClick={() => navigate('/diary')} size="sm">
+          <Button onClick={() => navigate('/progress')} size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Goal
           </Button>
@@ -302,6 +302,13 @@ export const DashboardMetrics = () => {
                   )}
                 </div>
               ))}
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/progress')}
+                className="w-full"
+              >
+                View All Focus Areas
+              </Button>
             </div>
           ) : (
             <div className="text-center py-6">
@@ -310,7 +317,7 @@ export const DashboardMetrics = () => {
               <p className="text-gray-600 mb-4">
                 Start tracking your goals and progress
               </p>
-              <Button onClick={() => navigate('/diary')}>
+              <Button onClick={() => navigate('/progress')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Focus Area
               </Button>
@@ -319,12 +326,12 @@ export const DashboardMetrics = () => {
         </CardContent>
       </Card>
 
-      {/* Leader Questionnaires Section */}
+      {/* Questionnaires Section for Leaders */}
       {userProfile?.role === 'leader' && data.assignedQuestionnaires && data.assignedQuestionnaires.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Recent Questionnaires</CardTitle>
+              <CardTitle>Questionnaires</CardTitle>
               <CardDescription>Your assigned questionnaires</CardDescription>
             </div>
             <Button onClick={() => navigate('/questionnaires')} size="sm">
@@ -358,7 +365,7 @@ export const DashboardMetrics = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Diary Entries</CardTitle>
+            <CardTitle>My Diary</CardTitle>
             <CardDescription>Your personal reflections and notes</CardDescription>
           </div>
           <Button onClick={() => navigate('/diary')} size="sm">
@@ -370,6 +377,13 @@ export const DashboardMetrics = () => {
           <div className="text-center py-4">
             <div className="text-2xl font-bold">{data.diaryEntries}</div>
             <p className="text-sm text-muted-foreground">Total entries</p>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/diary')}
+              className="mt-2"
+            >
+              View All Entries
+            </Button>
           </div>
         </CardContent>
       </Card>

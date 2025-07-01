@@ -8,11 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Brain, Mail, Lock, User, CheckCircle, UserCheck } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Brain, Mail, Lock, User, CheckCircle, UserCheck, KeyRound } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const { user, signIn, signUp, resendConfirmation } = useAuth();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +24,9 @@ const Auth = () => {
   const [role, setRole] = useState<'ceo' | 'leader'>('leader');
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Check if user came from email confirmation
   useEffect(() => {
@@ -55,6 +62,37 @@ const Auth = () => {
       setIsLoading(true);
       await resendConfirmation(email);
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) return;
+
+    try {
+      setResetLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth?type=recovery`
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password reset email sent",
+        description: "Please check your email for password reset instructions.",
+      });
+
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to send password reset email.",
+      });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -134,7 +172,55 @@ const Auth = () => {
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
 
-                  <div className="text-center">
+                  <div className="text-center space-y-2">
+                    <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+                      <DialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="text-purple-300 hover:text-purple-200"
+                        >
+                          Forgot password?
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white/95 backdrop-blur-sm">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center">
+                            <KeyRound className="h-5 w-5 mr-2" />
+                            Reset Password
+                          </DialogTitle>
+                          <DialogDescription>
+                            Enter your email address and we'll send you a link to reset your password.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleForgotPassword} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="reset-email">Email</Label>
+                            <Input
+                              id="reset-email"
+                              type="email"
+                              placeholder="your.email@company.com"
+                              value={resetEmail}
+                              onChange={(e) => setResetEmail(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button type="submit" disabled={resetLoading} className="flex-1">
+                              {resetLoading ? "Sending..." : "Send Reset Link"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowForgotPassword(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    
                     <Button
                       type="button"
                       variant="link"

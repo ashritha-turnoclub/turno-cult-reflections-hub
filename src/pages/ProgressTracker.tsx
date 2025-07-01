@@ -7,24 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Target, Calendar, Trash2, Edit, Save, X } from "lucide-react";
+import { Plus, Edit, Trash2, Target, Calendar, CheckSquare, Save, X } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface FocusArea {
-  id?: string;
+  id: string;
   title: string;
-  description: string;
-  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
-  year: number;
-  deadline: string;
+  description: string | null;
+  quarter: string | null;
+  year: number | null;
+  deadline: string | null;
   progress_percent: number;
   checklist: string[];
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
 const ProgressTracker = () => {
@@ -33,11 +35,11 @@ const ProgressTracker = () => {
   const [focusAreas, setFocusAreas] = useState<FocusArea[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editingArea, setEditingArea] = useState<FocusArea | undefined>();
-  const [formData, setFormData] = useState<FocusArea>({
+  const [editingArea, setEditingArea] = useState<FocusArea | null>(null);
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    quarter: 'Q1',
+    quarter: '',
     year: new Date().getFullYear(),
     deadline: '',
     progress_percent: 0,
@@ -61,12 +63,14 @@ const ProgressTracker = () => {
 
       if (error) throw error;
 
-      const formattedAreas = data?.map(area => ({
+      // Transform data to match our interface
+      const transformedAreas = data?.map(area => ({
         ...area,
-        checklist: area.checklist || []
+        checklist: Array.isArray(area.checklist) ? area.checklist : 
+                  typeof area.checklist === 'string' ? [area.checklist] : []
       })) || [];
 
-      setFocusAreas(formattedAreas);
+      setFocusAreas(transformedAreas);
     } catch (error) {
       console.error('Error fetching focus areas:', error);
       toast({
@@ -79,27 +83,113 @@ const ProgressTracker = () => {
     }
   };
 
-  const handleCreateNew = () => {
-    setEditingArea(undefined);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userProfile?.id) return;
+
+    try {
+      setLoading(true);
+      
+      const dataToSave = {
+        ...formData,
+        user_id: userProfile.id,
+        checklist: formData.checklist.filter(item => item.trim() !== '')
+      };
+
+      if (editingArea) {
+        // Update existing focus area
+        const { error } = await supabase
+          .from('focus_areas')
+          .update(dataToSave)
+          .eq('id', editingArea.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Focus Area Updated",
+          description: "Your focus area has been updated successfully.",
+        });
+      } else {
+        // Create new focus area
+        const { error } = await supabase
+          .from('focus_areas')
+          .insert([dataToSave]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Focus Area Created",
+          description: "Your focus area has been created successfully.",
+        });
+      }
+
+      resetForm();
+      fetchFocusAreas();
+    } catch (error) {
+      console.error('Error saving focus area:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save focus area.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       title: '',
       description: '',
-      quarter: 'Q1',
+      quarter: '',
       year: new Date().getFullYear(),
       deadline: '',
       progress_percent: 0,
       checklist: ['']
     });
-    setShowForm(true);
+    setShowForm(false);
+    setEditingArea(null);
   };
 
   const handleEdit = (area: FocusArea) => {
     setEditingArea(area);
     setFormData({
-      ...area,
-      checklist: area.checklist && area.checklist.length > 0 ? area.checklist : ['']
+      title: area.title,
+      description: area.description || '',
+      quarter: area.quarter || '',
+      year: area.year || new Date().getFullYear(),
+      deadline: area.deadline || '',
+      progress_percent: area.progress_percent,
+      checklist: area.checklist.length > 0 ? area.checklist : ['']
     });
     setShowForm(true);
+  };
+
+  const handleDelete = async (areaId: string) => {
+    if (!confirm('Are you sure you want to delete this focus area?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('focus_areas')
+        .delete()
+        .eq('id', areaId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Focus Area Deleted",
+        description: "The focus area has been deleted successfully.",
+      });
+
+      fetchFocusAreas();
+    } catch (error) {
+      console.error('Error deleting focus area:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete focus area.",
+      });
+    }
   };
 
   const addChecklistItem = () => {
@@ -123,143 +213,6 @@ const ProgressTracker = () => {
     }));
   };
 
-  const validateForm = () => {
-    if (!formData.title.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please enter a title for your focus area.",
-      });
-      return false;
-    }
-
-    if (!formData.deadline) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please set a deadline.",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setLoading(true);
-
-      const areaData = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        quarter: formData.quarter,
-        year: formData.year,
-        deadline: formData.deadline,
-        progress_percent: formData.progress_percent,
-        checklist: formData.checklist.filter(item => item.trim() !== ''),
-        user_id: userProfile?.id
-      };
-
-      if (editingArea?.id) {
-        // Update existing area
-        const { error } = await supabase
-          .from('focus_areas')
-          .update(areaData)
-          .eq('id', editingArea.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Focus Area Updated",
-          description: "Your focus area has been updated successfully.",
-        });
-      } else {
-        // Create new area
-        const { error } = await supabase
-          .from('focus_areas')
-          .insert(areaData);
-
-        if (error) throw error;
-
-        toast({
-          title: "Focus Area Created",
-          description: "Your focus area has been created successfully.",
-        });
-      }
-
-      setShowForm(false);
-      setEditingArea(undefined);
-      fetchFocusAreas();
-    } catch (error) {
-      console.error('Error saving focus area:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save focus area. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteFocusArea = async (areaId: string) => {
-    if (!confirm('Are you sure you want to delete this focus area?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('focus_areas')
-        .delete()
-        .eq('id', areaId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Focus Area Deleted",
-        description: "Focus area has been deleted successfully.",
-      });
-
-      fetchFocusAreas();
-    } catch (error) {
-      console.error('Error deleting focus area:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete focus area.",
-      });
-    }
-  };
-
-  const updateProgress = async (areaId: string, newProgress: number) => {
-    try {
-      const { error } = await supabase
-        .from('focus_areas')
-        .update({ progress_percent: newProgress })
-        .eq('id', areaId);
-
-      if (error) throw error;
-
-      setFocusAreas(prev => 
-        prev.map(area => 
-          area.id === areaId ? { ...area, progress_percent: newProgress } : area
-        )
-      );
-
-      toast({
-        title: "Progress Updated",
-        description: `Progress updated to ${newProgress}%`,
-      });
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update progress.",
-      });
-    }
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -267,18 +220,17 @@ const ProgressTracker = () => {
         
         <main className="flex-1 overflow-auto">
           <div className="p-6 space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <SidebarTrigger />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">Progress Tracker</h1>
-                  <p className="text-gray-600">Track your focus areas and goals</p>
+                  <p className="text-gray-600">Track your goals and focus areas</p>
                 </div>
               </div>
               
               {!showForm && (
-                <Button onClick={handleCreateNew}>
+                <Button onClick={() => setShowForm(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   New Focus Area
                 </Button>
@@ -289,126 +241,131 @@ const ProgressTracker = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>{editingArea ? 'Edit Focus Area' : 'New Focus Area'}</CardTitle>
-                  <CardDescription>Set up a new area to focus on and track your progress</CardDescription>
+                  <CardDescription>
+                    {editingArea ? 'Update your focus area' : 'Create a new focus area to track'}
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Title *</Label>
-                      <Input
-                        id="title"
-                        placeholder="e.g., Leadership Development"
-                        value={formData.title}
-                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="deadline">Target Deadline *</Label>
-                      <Input
-                        id="deadline"
-                        type="date"
-                        value={formData.deadline}
-                        onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                      />
-                    </div>
-                  </div>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="title">Title</Label>
+                        <Input
+                          id="title"
+                          value={formData.title}
+                          onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="Enter focus area title"
+                          required
+                        />
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="quarter">Quarter</Label>
-                      <Select
-                        value={formData.quarter}
-                        onValueChange={(value: 'Q1' | 'Q2' | 'Q3' | 'Q4') => 
-                          setFormData(prev => ({ ...prev, quarter: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Q1">Q1</SelectItem>
-                          <SelectItem value="Q2">Q2</SelectItem>
-                          <SelectItem value="Q3">Q3</SelectItem>
-                          <SelectItem value="Q4">Q4</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        <Label htmlFor="quarter">Quarter</Label>
+                        <Select 
+                          value={formData.quarter} 
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, quarter: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select quarter" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Q1">Q1</SelectItem>
+                            <SelectItem value="Q2">Q2</SelectItem>
+                            <SelectItem value="Q3">Q3</SelectItem>
+                            <SelectItem value="Q4">Q4</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="year">Year</Label>
+                        <Input
+                          id="year"
+                          type="number"
+                          value={formData.year}
+                          onChange={(e) => setFormData(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                          min="2020"
+                          max="2030"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="deadline">Deadline</Label>
+                        <Input
+                          id="deadline"
+                          type="date"
+                          value={formData.deadline}
+                          onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                        />
+                      </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="year">Year</Label>
-                      <Input
-                        id="year"
-                        type="number"
-                        value={formData.year}
-                        onChange={(e) => setFormData(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe your focus area..."
+                        rows={3}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="progress">Progress %</Label>
+                      <Label htmlFor="progress">Progress (%)</Label>
                       <Input
                         id="progress"
                         type="number"
                         min="0"
                         max="100"
                         value={formData.progress_percent}
-                        onChange={(e) => setFormData(prev => ({ ...prev, progress_percent: parseInt(e.target.value) || 0 }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, progress_percent: parseInt(e.target.value) }))}
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Describe your focus area and goals..."
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Action Items Checklist</Label>
-                    {formData.checklist.map((item, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <Input
-                          placeholder="Add an action item..."
-                          value={item}
-                          onChange={(e) => updateChecklistItem(index, e.target.value)}
-                          className="flex-1"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => removeChecklistItem(index)}
-                          disabled={formData.checklist.length === 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Action Items</Label>
+                        <Button type="button" onClick={addChecklistItem} size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
                         </Button>
                       </div>
-                    ))}
-                    <Button type="button" variant="outline" size="sm" onClick={addChecklistItem}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
-                  
-                  <div className="flex space-x-3">
-                    <Button onClick={handleSubmit} disabled={loading}>
-                      <Save className="h-4 w-4 mr-2" />
-                      {loading ? "Saving..." : "Save Focus Area"}
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowForm(false)}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
+                      
+                      {formData.checklist.map((item, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <Input
+                            value={item}
+                            onChange={(e) => updateChecklistItem(index, e.target.value)}
+                            placeholder="Enter action item"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeChecklistItem(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex space-x-4">
+                      <Button type="submit" disabled={loading}>
+                        <Save className="h-4 w-4 mr-2" />
+                        {loading ? 'Saving...' : 'Save Focus Area'}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={resetForm}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="grid gap-6">
                 {loading && focusAreas.length === 0 ? (
                   <Card>
                     <CardContent className="flex items-center justify-center py-12">
@@ -417,16 +374,12 @@ const ProgressTracker = () => {
                   </Card>
                 ) : focusAreas.length === 0 ? (
                   <Card>
-                    <CardContent className="text-center py-12">
-                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Target className="h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No focus areas yet</h3>
-                      <p className="text-gray-600 mb-4">
-                        Create your first focus area to start tracking your progress
+                      <p className="text-gray-600 text-center mb-4">
+                        Create your first focus area to start tracking your goals and progress.
                       </p>
-                      <Button onClick={handleCreateNew}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Focus Area
-                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
@@ -435,62 +388,74 @@ const ProgressTracker = () => {
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-xl">{area.title}</CardTitle>
-                            <div className="flex items-center space-x-3 mt-2">
-                              <Badge variant="outline">{area.quarter} {area.year}</Badge>
-                              <div className="flex items-center text-sm text-gray-500">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                Due: {new Date(area.deadline).toLocaleDateString()}
-                              </div>
+                            <CardTitle className="text-lg">{area.title}</CardTitle>
+                            {area.description && (
+                              <CardDescription className="mt-2">
+                                {area.description}
+                              </CardDescription>
+                            )}
+                            <div className="flex items-center space-x-3 mt-3">
+                              {area.quarter && (
+                                <Badge variant="outline">
+                                  {area.quarter} {area.year}
+                                </Badge>
+                              )}
+                              {area.deadline && (
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  Due: {new Date(area.deadline).toLocaleDateString()}
+                                </div>
+                              )}
+                              {area.checklist.length > 0 && (
+                                <div className="flex items-center text-sm text-gray-500">
+                                  <CheckSquare className="h-4 w-4 mr-1" />
+                                  {area.checklist.length} items
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(area)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(area)}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => deleteFocusArea(area.id!)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(area.id)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {area.description && (
-                          <p className="text-gray-700">{area.description}</p>
-                        )}
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span>Progress</span>
-                            <span>{area.progress_percent}%</span>
-                          </div>
-                          <Progress value={area.progress_percent} className="h-2" />
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={area.progress_percent}
-                              onChange={(e) => updateProgress(area.id!, parseInt(e.target.value) || 0)}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-gray-500">%</span>
-                          </div>
-                        </div>
-                        
-                        {area.checklist && area.checklist.length > 0 && (
+                      <CardContent>
+                        <div className="space-y-4">
                           <div className="space-y-2">
-                            <h4 className="font-medium text-gray-900">Action Items:</h4>
-                            <div className="space-y-2">
-                              {area.checklist.map((item, index) => (
-                                <div key={index} className="flex items-center space-x-2">
-                                  <Checkbox />
-                                  <span className="text-sm text-gray-700">{item}</span>
-                                </div>
-                              ))}
+                            <div className="flex items-center justify-between text-sm">
+                              <span>Progress</span>
+                              <span>{area.progress_percent}%</span>
                             </div>
+                            <Progress value={area.progress_percent} className="h-2" />
                           </div>
-                        )}
+                          
+                          {area.checklist.length > 0 && (
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-medium">Action Items:</h4>
+                              <ul className="space-y-1">
+                                {area.checklist.map((item, index) => (
+                                  <li key={index} className="text-sm text-gray-600 flex items-center">
+                                    <CheckSquare className="h-3 w-3 mr-2" />
+                                    {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))

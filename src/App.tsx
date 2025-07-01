@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +12,9 @@ import TeamManagement from "./pages/TeamManagement";
 import Questionnaires from "./pages/Questionnaires";
 import Diary from "./pages/Diary";
 import ProgressTracker from "./pages/ProgressTracker";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import AIInsights from "./pages/AIInsights";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,16 @@ const App = () => (
             <Route path="/progress" element={
               <ProtectedRoute>
                 <ProgressTracker />
+              </ProtectedRoute>
+            } />
+            <Route path="/ai-insights" element={
+              <ProtectedRoute>
+                <AIInsights />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
