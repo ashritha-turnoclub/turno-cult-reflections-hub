@@ -17,11 +17,7 @@ interface Notification {
   ref_id: string | null;
 }
 
-interface NotificationCenterProps {
-  onNotificationRead?: () => void;
-}
-
-export const NotificationCenter = ({ onNotificationRead }: NotificationCenterProps) => {
+export const NotificationCenter = () => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -40,8 +36,7 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
         .from('notifications')
         .select('*')
         .eq('recipient_id', userProfile?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setNotifications(data || []);
@@ -69,10 +64,6 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read_flag: true } : n)
       );
-      
-      if (onNotificationRead) {
-        onNotificationRead();
-      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -91,10 +82,6 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
       setNotifications(prev => 
         prev.map(n => ({ ...n, read_flag: true }))
       );
-      
-      if (onNotificationRead) {
-        onNotificationRead();
-      }
       
       toast({
         title: "All notifications marked as read",
@@ -127,33 +114,36 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
   const unreadCount = notifications.filter(n => !n.read_flag).length;
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5" />
-          <span className="font-semibold">Notifications</span>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            <CardTitle>Notifications</CardTitle>
+            {unreadCount > 0 && (
+              <Badge variant="secondary">{unreadCount} new</Badge>
+            )}
+          </div>
           {unreadCount > 0 && (
-            <Badge variant="secondary">{unreadCount} new</Badge>
+            <Button variant="outline" size="sm" onClick={markAllAsRead}>
+              Mark all as read
+            </Button>
           )}
         </div>
-        {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={markAllAsRead}>
-            Mark all read
-          </Button>
-        )}
-      </div>
-      <div className="max-h-80 overflow-y-auto">
+        <CardDescription>Stay updated with the latest activities</CardDescription>
+      </CardHeader>
+      <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center py-8 px-4">
-            <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">No notifications yet</p>
+          <div className="text-center py-8">
+            <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No notifications yet</p>
           </div>
         ) : (
-          <div className="space-y-1 p-2">
+          <div className="space-y-3 max-h-96 overflow-y-auto">
             {notifications.map((notification) => (
               <div
                 key={notification.id}
@@ -171,7 +161,7 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(notification.created_at).toLocaleDateString()} at{' '}
-                    {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(notification.created_at).toLocaleTimeString()}
                   </p>
                 </div>
                 {!notification.read_flag && (
@@ -183,7 +173,7 @@ export const NotificationCenter = ({ onNotificationRead }: NotificationCenterPro
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
