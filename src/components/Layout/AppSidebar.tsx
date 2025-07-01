@@ -1,8 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from "react";
+import { Calendar, ChevronUp, Home, User2, FileText, BookOpen, Target, Brain, Settings, Users, Bell } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -10,143 +13,115 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Home, 
-  Users, 
-  FileText, 
-  BookOpen, 
-  TrendingUp, 
-  Brain,
-  Settings,
-  LogOut
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useAuth } from '@/hooks/useAuth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { NotificationBell } from "@/components/Notifications/NotificationBell";
 
 interface AppSidebarProps {
-  userRole?: 'ceo' | 'leader';
+  userRole?: string;
   userName?: string;
 }
 
-export function AppSidebar({ userRole = 'ceo', userName = 'John Doe' }: AppSidebarProps) {
-  const [activeItem, setActiveItem] = useState('dashboard');
+export function AppSidebar({ userRole, userName }: AppSidebarProps) {
+  const location = useLocation();
   const { signOut } = useAuth();
 
-  const ceoMenuItems = [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Home,
-      id: 'dashboard'
-    },
-    {
-      title: "Team Management",
-      url: "/team",
-      icon: Users,
-      id: 'team'
-    },
-    {
-      title: "Questionnaires",
-      url: "/questionnaires",
-      icon: FileText,
-      id: 'questionnaires'
-    },
-    {
-      title: "My Diary",
-      url: "/diary",
-      icon: BookOpen,
-      id: 'diary'
-    },
-    {
-      title: "Progress Tracker",
-      url: "/progress",
-      icon: TrendingUp,
-      id: 'progress'
-    },
-    {
-      title: "AI Insights",
-      url: "/ai-insights",
-      icon: Brain,
-      id: 'ai-insights'
-    },
-  ];
+  const getMenuItems = () => {
+    const commonItems = [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: Home,
+      },
+      {
+        title: "Diary",
+        url: "/diary",
+        icon: BookOpen,
+      },
+      {
+        title: "Progress Tracker",
+        url: "/progress",
+        icon: Target,
+      },
+      {
+        title: "AI Insights",
+        url: "/ai-insights",
+        icon: Brain,
+      },
+      {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
+      },
+    ];
 
-  const leaderMenuItems = [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Home,
-      id: 'dashboard'
-    },
-    {
-      title: "Assigned Tasks",
-      url: "/assignments",
-      icon: FileText,
-      id: 'assignments'
-    },
-    {
-      title: "My Diary",
-      url: "/diary",
-      icon: BookOpen,
-      id: 'diary'
-    },
-    {
-      title: "Progress Tracker",
-      url: "/progress",
-      icon: TrendingUp,
-      id: 'progress'
-    },
-    {
-      title: "AI Insights",
-      url: "/ai-insights",
-      icon: Brain,
-      id: 'ai-insights'
-    },
-  ];
-
-  const menuItems = userRole === 'ceo' ? ceoMenuItems : leaderMenuItems;
-
-  const handleLogout = async () => {
-    await signOut();
+    if (userRole === 'ceo') {
+      return [
+        ...commonItems.slice(0, 1), // Dashboard
+        {
+          title: "Questionnaires",
+          url: "/questionnaires",
+          icon: FileText,
+        },
+        {
+          title: "Team Management",
+          url: "/team",
+          icon: Users,
+        },
+        ...commonItems.slice(1), // Rest of the items
+      ];
+    } else {
+      return [
+        ...commonItems.slice(0, 1), // Dashboard
+        {
+          title: "Questionnaires",
+          url: "/questionnaires",
+          icon: FileText,
+        },
+        ...commonItems.slice(1), // Rest of the items
+      ];
+    }
   };
 
+  const menuItems = getMenuItems();
+
   return (
-    <Sidebar className="border-r border-gray-200">
-      <SidebarHeader className="p-6">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-full p-2">
-            <Brain className="h-6 w-6 text-white" />
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-4 py-2">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold">LeaderSync</span>
+              <span className="truncate text-xs">Performance Platform</span>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Turno.Cult</h2>
-            <p className="text-sm text-gray-500">Leadership Tracker</p>
-          </div>
+          <NotificationBell />
         </div>
       </SidebarHeader>
-
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-2">
-            Navigation
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
+                <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 
-                    isActive={activeItem === item.id}
-                    onClick={() => setActiveItem(item.id)}
-                    className="w-full justify-start"
+                    isActive={location.pathname === item.url}
                   >
-                    <a href={item.url} className="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors">
-                      <item.icon className="h-5 w-5" />
-                      <span className="font-medium">{item.title}</span>
-                    </a>
+                    <Link to={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -154,36 +129,27 @@ export function AppSidebar({ userRole = 'ceo', userName = 'John Doe' }: AppSideb
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="p-4">
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-purple-100 text-purple-700 font-semibold">
-                {userName.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
-              <div className="flex items-center space-x-2">
-                <Badge variant={userRole === 'ceo' ? 'default' : 'secondary'} className="text-xs">
-                  {userRole === 'ceo' ? 'CEO' : 'Leader'}
-                </Badge>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" className="flex-1">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-1">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton>
+                  <User2 /> {userName || "User"}
+                  <ChevronUp className="ml-auto" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                className="w-[--radix-popper-anchor-width]"
+              >
+                <DropdownMenuItem onClick={() => signOut()}>
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

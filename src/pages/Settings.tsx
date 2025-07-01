@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User, Lock, Save, KeyRound } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,95 +17,99 @@ const Settings = () => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [profileData, setProfileData] = useState({
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Account details form
+  const [accountForm, setAccountForm] = useState({
     name: '',
     email: ''
   });
-  const [passwordData, setPasswordData] = useState({
+  
+  // Password change form
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
   useEffect(() => {
     if (userProfile) {
-      setProfileData({
+      setAccountForm({
         name: userProfile.name || '',
         email: userProfile.email || ''
       });
     }
   }, [userProfile]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+  const handleAccountUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userProfile?.id) return;
+    if (!userProfile) return;
 
     try {
       setLoading(true);
-      
+
       // Update user profile in users table
       const { error: profileError } = await supabase
         .from('users')
         .update({
-          name: profileData.name,
-          email: profileData.email
+          name: accountForm.name,
+          email: accountForm.email
         })
         .eq('id', userProfile.id);
 
       if (profileError) throw profileError;
 
-      // Update email in auth if changed
-      if (profileData.email !== userProfile.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: profileData.email
+      // Update auth user email if changed
+      if (accountForm.email !== userProfile.email) {
+        const { error: authError } = await supabase.auth.updateUser({
+          email: accountForm.email
         });
 
-        if (emailError) throw emailError;
+        if (authError) throw authError;
 
         toast({
-          title: "Profile Updated",
-          description: "Please check your email to confirm the new email address.",
+          title: "Email update initiated",
+          description: "Please check your new email address for a confirmation link.",
         });
       } else {
         toast({
-          title: "Profile Updated",
-          description: "Your profile has been updated successfully.",
+          title: "Account updated successfully",
+          description: "Your account details have been updated.",
         });
       }
 
-      // Refresh the page to reflect changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-
+      // Refresh user profile
+      window.location.reload();
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating account:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update profile.",
+        title: "Error updating account",
+        description: error.message || "Please try again.",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "New passwords do not match.",
+        title: "Password mismatch",
+        description: "New password and confirmation don't match.",
       });
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
+    if (passwordForm.newPassword.length < 6) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Password too short",
         description: "Password must be at least 6 characters long.",
       });
       return;
@@ -113,30 +117,30 @@ const Settings = () => {
 
     try {
       setLoading(true);
-      
+
       const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword
+        password: passwordForm.newPassword
       });
 
       if (error) throw error;
 
       toast({
-        title: "Password Updated",
-        description: "Your password has been changed successfully.",
+        title: "Password updated successfully",
+        description: "Your password has been changed.",
       });
 
-      setShowChangePassword(false);
-      setPasswordData({
+      // Clear password form
+      setPasswordForm({
+        currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-
     } catch (error: any) {
-      console.error('Error changing password:', error);
+      console.error('Error updating password:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to change password.",
+        title: "Error updating password",
+        description: error.message || "Please try again.",
       });
     } finally {
       setLoading(false);
@@ -158,149 +162,180 @@ const Settings = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="profile" className="space-y-6">
+            <Tabs defaultValue="account" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="security">Security</TabsTrigger>
+                <TabsTrigger value="account" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Account
+                </TabsTrigger>
+                <TabsTrigger value="security" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Security
+                </TabsTrigger>
               </TabsList>
-              
-              <TabsContent value="profile">
+
+              <TabsContent value="account" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <User className="h-5 w-5 mr-2" />
-                      Account Details
-                    </CardTitle>
+                    <CardTitle>Account Details</CardTitle>
                     <CardDescription>
-                      Update your personal information and account details
+                      View and update your account information
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <form onSubmit={handleAccountUpdate} className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Full Name</Label>
                           <Input
                             id="name"
-                            value={profileData.name}
-                            onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                            value={accountForm.name}
+                            onChange={(e) => setAccountForm(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Enter your full name"
                             required
                           />
                         </div>
-                        
                         <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
+                          <Label htmlFor="email">Email Address</Label>
                           <Input
                             id="email"
                             type="email"
-                            value={profileData.email}
-                            onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                            value={accountForm.email}
+                            onChange={(e) => setAccountForm(prev => ({ ...prev, email: e.target.value }))}
                             placeholder="Enter your email"
                             required
                           />
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <Label>Role</Label>
                         <Input
-                          value={userProfile?.role?.toUpperCase() || 'Unknown'}
+                          value={userProfile?.role?.toUpperCase() || ''}
                           disabled
                           className="bg-gray-50"
                         />
-                        <p className="text-sm text-gray-500">
-                          Your role cannot be changed. Contact your administrator if you need to change your role.
-                        </p>
+                        <p className="text-sm text-gray-500">Your role cannot be changed</p>
                       </div>
-
-                      <Button type="submit" disabled={loading}>
-                        <Save className="h-4 w-4 mr-2" />
-                        {loading ? "Saving..." : "Save Changes"}
-                      </Button>
+                      <Separator />
+                      <div className="flex justify-end">
+                        <Button type="submit" disabled={loading}>
+                          {loading ? "Updating..." : "Update Account"}
+                        </Button>
+                      </div>
                     </form>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="security">
+              <TabsContent value="security" className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Lock className="h-5 w-5 mr-2" />
-                      Security Settings
-                    </CardTitle>
+                    <CardTitle>Change Password</CardTitle>
                     <CardDescription>
-                      Manage your password and security preferences
+                      Update your password to keep your account secure
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h4 className="font-medium">Password</h4>
-                          <p className="text-sm text-gray-500">
-                            Keep your account secure with a strong password
-                          </p>
+                    <form onSubmit={handlePasswordChange} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="currentPassword"
+                            type={showCurrentPassword ? "text" : "password"}
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                            placeholder="Enter current password"
+                            required
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          >
+                            {showCurrentPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline">
-                              <KeyRound className="h-4 w-4 mr-2" />
-                              Change Password
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Change Password</DialogTitle>
-                              <DialogDescription>
-                                Enter your new password below. Make sure it's strong and secure.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleChangePassword} className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="new-password">New Password</Label>
-                                <Input
-                                  id="new-password"
-                                  type="password"
-                                  value={passwordData.newPassword}
-                                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                                  placeholder="Enter new password"
-                                  required
-                                  minLength={6}
-                                />
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                <Input
-                                  id="confirm-password"
-                                  type="password"
-                                  value={passwordData.confirmPassword}
-                                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                  placeholder="Confirm new password"
-                                  required
-                                  minLength={6}
-                                />
-                              </div>
-                              
-                              <div className="flex space-x-2">
-                                <Button type="submit" disabled={loading} className="flex-1">
-                                  {loading ? "Updating..." : "Update Password"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setShowChangePassword(false)}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
                       </div>
-                    </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="newPassword">New Password</Label>
+                          <div className="relative">
+                            <Input
+                              id="newPassword"
+                              type={showNewPassword ? "text" : "password"}
+                              value={passwordForm.newPassword}
+                              onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                              placeholder="Enter new password"
+                              required
+                              minLength={6}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                          <div className="relative">
+                            <Input
+                              id="confirmPassword"
+                              type={showConfirmPassword ? "text" : "password"}
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              placeholder="Confirm new password"
+                              required
+                              minLength={6}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600">
+                        <p>Password requirements:</p>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>At least 6 characters long</li>
+                          <li>Mix of letters and numbers recommended</li>
+                        </ul>
+                      </div>
+                      
+                      <Separator />
+                      <div className="flex justify-end">
+                        <Button type="submit" disabled={loading}>
+                          {loading ? "Updating..." : "Change Password"}
+                        </Button>
+                      </div>
+                    </form>
                   </CardContent>
                 </Card>
               </TabsContent>
