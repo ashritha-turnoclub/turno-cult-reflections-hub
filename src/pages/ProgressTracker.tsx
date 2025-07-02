@@ -99,7 +99,7 @@ const ProgressTracker = () => {
         user_id: userProfile.id,
         title: formData.title.trim(),
         description: formData.description.trim() || null,
-        quarter: formData.quarter as QuarterType || null,
+        quarter: formData.quarter || null,
         year: formData.year,
         deadline: formData.deadline || null,
         progress_percent: formData.progress_percent,
