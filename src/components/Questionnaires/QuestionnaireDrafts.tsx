@@ -7,6 +7,8 @@ import { Edit, Trash2, Send, Eye, Calendar } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SearchSortHeader } from '@/components/ui/search-sort-header';
+import { useSearch } from '@/hooks/useSearch';
 
 interface Draft {
   id: string;
@@ -30,6 +32,32 @@ export const QuestionnaireDrafts = ({ onEditDraft, onRefresh }: QuestionnaireDra
   const { toast } = useToast();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const sortOptions = [
+    { value: 'title-asc', label: 'Title (A-Z)' },
+    { value: 'title-desc', label: 'Title (Z-A)' },
+    { value: 'quarter-asc', label: 'Quarter (Q1-Q4)' },
+    { value: 'quarter-desc', label: 'Quarter (Q4-Q1)' },
+    { value: 'year-asc', label: 'Year (Ascending)' },
+    { value: 'year-desc', label: 'Year (Descending)' },
+    { value: 'deadline-asc', label: 'Deadline (Soonest)' },
+    { value: 'deadline-desc', label: 'Deadline (Latest)' },
+    { value: 'created_at-desc', label: 'Created (Newest)' },
+    { value: 'created_at-asc', label: 'Created (Oldest)' }
+  ];
+
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+    filteredData: filteredDrafts
+  } = useSearch({
+    data: drafts,
+    searchFields: ['title', 'description'],
+    sortOptions,
+    defaultSort: 'created_at-desc'
+  });
 
   useEffect(() => {
     if (userProfile?.id) {
@@ -142,7 +170,16 @@ export const QuestionnaireDrafts = ({ onEditDraft, onRefresh }: QuestionnaireDra
 
   return (
     <div className="space-y-4">
-      {drafts.length === 0 ? (
+      <SearchSortHeader
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={sortOptions}
+        searchPlaceholder="Search questionnaires..."
+      />
+      
+      {filteredDrafts.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 mb-2">No questionnaires found</h3>
@@ -150,7 +187,7 @@ export const QuestionnaireDrafts = ({ onEditDraft, onRefresh }: QuestionnaireDra
           </CardContent>
         </Card>
       ) : (
-        drafts.map((draft) => (
+        filteredDrafts.map((draft) => (
           <Card key={draft.id}>
             <CardHeader>
               <div className="flex items-start justify-between">

@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { AppSidebar } from "@/components/Layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { DiaryList } from '@/components/Diary/DiaryList';
 import { DiaryForm } from '@/components/Diary/DiaryForm';
+import { NotificationBell } from '@/components/Notifications/NotificationBell';
+import { SearchSortHeader } from '@/components/ui/search-sort-header';
+import { useSearch } from '@/hooks/useSearch';
 
 interface DiaryEntry {
   id?: string;
@@ -24,18 +24,15 @@ const Diary = () => {
   const { userProfile } = useAuth();
   const [activeView, setActiveView] = useState<'list' | 'form'>('list');
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const categories = [
-    'Team Meetings',
-    'Self-Reflection', 
-    'Client Relations',
-    'Strategic Planning',
-    'Personal Development',
-    'Leadership Growth',
-    'Goal Setting'
+  const sortOptions = [
+    { value: 'title-asc', label: 'Title (A-Z)' },
+    { value: 'title-desc', label: 'Title (Z-A)' },
+    { value: 'timeline-asc', label: 'Timeline (Earliest)' },
+    { value: 'timeline-desc', label: 'Timeline (Latest)' },
+    { value: 'created_at-desc', label: 'Created (Newest)' },
+    { value: 'created_at-asc', label: 'Created (Oldest)' }
   ];
 
   const handleCreateNew = () => {
@@ -76,12 +73,15 @@ const Diary = () => {
                 </div>
               </div>
               
-              {activeView === 'list' && (
-                <Button onClick={handleCreateNew}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Entry
-                </Button>
-              )}
+              <div className="flex items-center space-x-4">
+                <NotificationBell />
+                {activeView === 'list' && (
+                  <Button onClick={handleCreateNew}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Entry
+                  </Button>
+                )}
+              </div>
             </div>
 
             {activeView === 'form' ? (
@@ -92,45 +92,10 @@ const Diary = () => {
               />
             ) : (
               <>
-                {/* Filters */}
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="flex-1">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            placeholder="Search entries..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                          />
-                        </div>
-                      </div>
-                      <div className="sm:w-48">
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                          <SelectTrigger>
-                            <Filter className="h-4 w-4 mr-2" />
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map(category => (
-                              <SelectItem key={category} value={category}>{category}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Diary Entries List */}
                 <DiaryList
-                  searchTerm={searchTerm}
-                  selectedCategory={selectedCategory}
                   onEditEntry={handleEditEntry}
                   refreshKey={refreshKey}
+                  sortOptions={sortOptions}
                 />
               </>
             )}

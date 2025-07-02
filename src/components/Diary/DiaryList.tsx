@@ -7,6 +7,8 @@ import { Edit, Trash2, Calendar, FileText, CheckSquare } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SearchSortHeader } from '@/components/ui/search-sort-header';
+import { useSearch, SortOption } from '@/hooks/useSearch';
 
 interface DiaryEntry {
   id: string;
@@ -21,17 +23,29 @@ interface DiaryEntry {
 }
 
 interface DiaryListProps {
-  searchTerm: string;
-  selectedCategory: string;
   onEditEntry: (entry: DiaryEntry) => void;
   refreshKey: number;
+  sortOptions: SortOption[];
 }
 
-export const DiaryList = ({ searchTerm, selectedCategory, onEditEntry, refreshKey }: DiaryListProps) => {
+export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListProps) => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+    filteredData: filteredEntries
+  } = useSearch({
+    data: entries,
+    searchFields: ['title', 'notes'],
+    sortOptions,
+    defaultSort: 'created_at-desc'
+  });
 
   useEffect(() => {
     if (userProfile?.id) {
@@ -98,12 +112,6 @@ export const DiaryList = ({ searchTerm, selectedCategory, onEditEntry, refreshKe
     }
   };
 
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.notes.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || entry.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   if (loading) {
     return (
@@ -117,6 +125,15 @@ export const DiaryList = ({ searchTerm, selectedCategory, onEditEntry, refreshKe
 
   return (
     <div className="space-y-4">
+      <SearchSortHeader
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={sortOptions}
+        searchPlaceholder="Search diary entries..."
+      />
+      
       {filteredEntries.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">

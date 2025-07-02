@@ -16,6 +16,9 @@ import { Target, Plus, Edit, Trash2, Calendar, CheckSquare } from "lucide-react"
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationBell } from '@/components/Notifications/NotificationBell';
+import { SearchSortHeader } from '@/components/ui/search-sort-header';
+import { useSearch } from '@/hooks/useSearch';
 
 type QuarterType = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -48,6 +51,32 @@ const ProgressTracker = () => {
     deadline: '',
     progress_percent: 0,
     checklist: ['']
+  });
+
+  const sortOptions = [
+    { value: 'title-asc', label: 'Title (A-Z)' },
+    { value: 'title-desc', label: 'Title (Z-A)' },
+    { value: 'quarter-asc', label: 'Quarter (Q1-Q4)' },
+    { value: 'quarter-desc', label: 'Quarter (Q4-Q1)' },
+    { value: 'year-asc', label: 'Year (Ascending)' },
+    { value: 'year-desc', label: 'Year (Descending)' },
+    { value: 'deadline-asc', label: 'Deadline (Soonest)' },
+    { value: 'deadline-desc', label: 'Deadline (Latest)' },
+    { value: 'created_at-desc', label: 'Created (Newest)' },
+    { value: 'created_at-asc', label: 'Created (Oldest)' }
+  ];
+
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+    filteredData: filteredFocusAreas
+  } = useSearch({
+    data: focusAreas,
+    searchFields: ['title', 'description'],
+    sortOptions,
+    defaultSort: 'created_at-desc'
   });
 
   useEffect(() => {
@@ -240,13 +269,15 @@ const ProgressTracker = () => {
                 </div>
               </div>
               
-              <Dialog open={showDialog} onOpenChange={setShowDialog}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => { resetForm(); setShowDialog(true); }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Focus Area
-                  </Button>
-                </DialogTrigger>
+              <div className="flex items-center space-x-4">
+                <NotificationBell />
+                <Dialog open={showDialog} onOpenChange={setShowDialog}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => { resetForm(); setShowDialog(true); }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Focus Area
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>
@@ -376,8 +407,18 @@ const ProgressTracker = () => {
                     </div>
                   </form>
                 </DialogContent>
-              </Dialog>
+                 </Dialog>
+              </div>
             </div>
+
+            <SearchSortHeader
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              sortOptions={sortOptions}
+              searchPlaceholder="Search focus areas..."
+            />
 
             <div className="grid gap-6">
               {loading && focusAreas.length === 0 ? (
@@ -401,7 +442,7 @@ const ProgressTracker = () => {
                   </CardContent>
                 </Card>
               ) : (
-                focusAreas.map((area) => (
+                filteredFocusAreas.map((area) => (
                   <Card key={area.id}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
