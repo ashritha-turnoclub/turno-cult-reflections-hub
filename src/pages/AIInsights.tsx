@@ -5,11 +5,15 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Sparkles, MessageCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Brain, Sparkles, MessageCircle, BarChart3, Target } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationBell } from '@/components/Notifications/NotificationBell';
+import InsightCard from '@/components/AIInsights/InsightCard';
+import RecommendationsCard from '@/components/AIInsights/RecommendationsCard';
+import ProgressChart from '@/components/AIInsights/ProgressChart';
 
 interface Summary {
   id: string;
@@ -79,14 +83,14 @@ const AIInsights = () => {
           .select('*')
           .eq('user_id', userProfile.id)
           .order('created_at', { ascending: false })
-          .limit(10),
+          .limit(20),
         
         supabase
           .from('focus_areas')
           .select('*')
           .eq('user_id', userProfile.id)
           .order('created_at', { ascending: false })
-          .limit(10)
+          .limit(20)
       ]);
 
       // Generate insights using edge function
@@ -120,6 +124,16 @@ const AIInsights = () => {
     }
   };
 
+  const parseInsightContent = (content: string) => {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return { rawContent: content, summary: "Legacy insight format" };
+    }
+  };
+
+  const latestInsight = summaries.length > 0 ? parseInsightContent(summaries[0].content) : null;
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -135,7 +149,7 @@ const AIInsights = () => {
                     <Brain className="h-8 w-8 mr-3 text-purple-600" />
                     AI Insights
                   </h1>
-                  <p className="text-gray-600">Your personal AI coach and insights</p>
+                  <p className="text-gray-600">Your personalized AI coach and performance analytics</p>
                 </div>
               </div>
               
@@ -147,65 +161,132 @@ const AIInsights = () => {
                   className="bg-purple-600 hover:bg-purple-700"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {generating ? "Generating..." : "Generate Insights"}
+                  {generating ? "Generating..." : "Generate New Insights"}
                 </Button>
               </div>
             </div>
 
-            <div className="grid gap-6">
-              {loading && summaries.length === 0 ? (
-                <Card>
-                  <CardContent className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                  </CardContent>
-                </Card>
-              ) : summaries.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Brain className="h-12 w-12 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No insights yet</h3>
-                    <p className="text-gray-600 text-center mb-4">
-                      Generate your first AI insights to get personalized coaching and recommendations.
-                    </p>
-                    <Button onClick={generateInsights} disabled={generating}>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Generate Your First Insight
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                summaries.map((summary) => (
-                  <Card key={summary.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="flex items-center">
-                            <MessageCircle className="h-5 w-5 mr-2 text-purple-600" />
-                            AI Coaching Insight
-                          </CardTitle>
-                          <CardDescription>
-                            Generated on {new Date(summary.created_at).toLocaleDateString()}
-                            {summary.quarter && summary.year && (
-                              <Badge variant="outline" className="ml-2">
-                                {summary.quarter} {summary.year}
-                              </Badge>
-                            )}
-                          </CardDescription>
-                        </div>
-                        <Badge variant="secondary">{summary.type}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="prose prose-sm max-w-none">
-                        <div className="whitespace-pre-wrap text-gray-700">
-                          {summary.content}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            {loading && summaries.length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </CardContent>
+              </Card>
+            ) : summaries.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Brain className="h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No insights yet</h3>
+                  <p className="text-gray-600 text-center mb-4">
+                    Generate your first AI insights to get personalized coaching and recommendations.
+                  </p>
+                  <Button onClick={generateInsights} disabled={generating}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Your First Insight
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {latestInsight && (
+                  <Tabs defaultValue="overview" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="overview" className="flex items-center space-x-2">
+                        <MessageCircle className="h-4 w-4" />
+                        <span>Overview</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="analytics" className="flex items-center space-x-2">
+                        <BarChart3 className="h-4 w-4" />
+                        <span>Analytics</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="recommendations" className="flex items-center space-x-2">
+                        <Target className="h-4 w-4" />
+                        <span>Action Items</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="history" className="flex items-center space-x-2">
+                        <Brain className="h-4 w-4" />
+                        <span>History</span>
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="overview" className="space-y-6">
+                      <InsightCard insight={latestInsight} />
+                    </TabsContent>
+
+                    <TabsContent value="analytics" className="space-y-6">
+                      <ProgressChart analytics={latestInsight.analytics} />
+                    </TabsContent>
+
+                    <TabsContent value="recommendations" className="space-y-6">
+                      <RecommendationsCard
+                        recommendations={latestInsight.recommendations}
+                        blockers={latestInsight.blockers}
+                        nextSteps={latestInsight.nextSteps}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="history" className="space-y-6">
+                      {summaries.map((summary) => {
+                        const insight = parseInsightContent(summary.content);
+                        return (
+                          <Card key={summary.id}>
+                            <CardHeader>
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <CardTitle className="flex items-center">
+                                    <MessageCircle className="h-5 w-5 mr-2 text-purple-600" />
+                                    AI Coaching Insight
+                                  </CardTitle>
+                                  <CardDescription>
+                                    Generated on {new Date(summary.created_at).toLocaleDateString()}
+                                    {summary.quarter && summary.year && (
+                                      <Badge variant="outline" className="ml-2">
+                                        {summary.quarter} {summary.year}
+                                      </Badge>
+                                    )}
+                                  </CardDescription>
+                                </div>
+                                <Badge variant="secondary">{summary.type}</Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              {insight.summary ? (
+                                <div className="space-y-4">
+                                  <p className="text-gray-700">{insight.summary}</p>
+                                  {insight.keyMetrics && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                                      <div className="text-center">
+                                        <div className="text-2xl font-bold text-blue-600">{insight.keyMetrics.progressScore}%</div>
+                                        <div className="text-xs text-gray-600">Progress Score</div>
+                                      </div>
+                                      <div className="text-center">
+                                        <div className="text-2xl font-bold text-green-600">{insight.keyMetrics.completionRate}%</div>
+                                        <div className="text-xs text-gray-600">Completion Rate</div>
+                                      </div>
+                                      <div className="text-center">
+                                        <Badge variant={insight.keyMetrics.riskLevel === 'HIGH' ? 'destructive' : insight.keyMetrics.riskLevel === 'MEDIUM' ? 'secondary' : 'default'}>
+                                          {insight.keyMetrics.riskLevel} Risk
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="prose prose-sm max-w-none">
+                                  <div className="whitespace-pre-wrap text-gray-700">
+                                    {insight.rawContent || summary.content}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </TabsContent>
+                  </Tabs>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>

@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -30,18 +31,44 @@ serve(async (req) => {
       );
     }
 
+    // Calculate analytics
+    const totalFocusAreas = focusAreas?.length || 0;
+    const completedFocusAreas = focusAreas?.filter((area: any) => area.progress_percent >= 100).length || 0;
+    const avgProgress = totalFocusAreas > 0 ? 
+      Math.round(focusAreas.reduce((sum: number, area: any) => sum + (area.progress_percent || 0), 0) / totalFocusAreas) : 0;
+    
+    const recentDiaryEntries = diaryEntries?.length || 0;
+    const submittedQuestionnaires = questionnaires?.filter((q: any) => q.submitted_at).length || 0;
+    const totalQuestionnaires = questionnaires?.length || 0;
+    
+    // Overdue items
+    const currentDate = new Date();
+    const overdueItems = focusAreas?.filter((area: any) => {
+      if (!area.deadline) return false;
+      return new Date(area.deadline) < currentDate && area.progress_percent < 100;
+    }).length || 0;
+
     const context = `
 Role: ${userRole?.toUpperCase() || 'UNKNOWN'}
+
+ANALYTICS SUMMARY:
+- Total Focus Areas: ${totalFocusAreas}
+- Completed Focus Areas: ${completedFocusAreas}
+- Average Progress: ${avgProgress}%
+- Recent Diary Entries: ${recentDiaryEntries}
+- Submitted Questionnaires: ${submittedQuestionnaires}/${totalQuestionnaires}
+- Overdue Items: ${overdueItems}
 
 Recent Questionnaire Responses:
 ${questionnaires?.map((q: any) => `
 - ${q.questionnaires?.title || 'Untitled'} (${q.questionnaires?.quarter || 'No quarter'} ${q.questionnaires?.year || 'No year'})
+  Status: ${q.submitted_at ? 'Submitted' : 'Pending'}
   Answers: ${q.answers?.map((a: any) => a.answer_text).join('; ') || 'No answers provided'}
 `).join('\n') || 'No questionnaire data available'}
 
 Diary Entries:
 ${diaryEntries?.map((entry: any) => `
-- ${entry.title || 'Untitled'} (${entry.category || 'Uncategorized'})
+- ${entry.title || 'Untitled'} (${entry.category || 'Uncategorized'}) - ${entry.created_at ? new Date(entry.created_at).toLocaleDateString() : 'No date'}
   Notes: ${entry.notes || 'No notes'}
   Timeline: ${entry.timeline || 'No timeline'}
 `).join('\n') || 'No diary entries available'}
@@ -52,21 +79,44 @@ ${focusAreas?.map((area: any) => `
   Description: ${area.description || 'No description'}
   Deadline: ${area.deadline || 'No deadline'}
   Quarter: ${area.quarter || 'No quarter'} ${area.year || ''}
+  Status: ${area.progress_percent >= 100 ? 'COMPLETED' : area.deadline && new Date(area.deadline) < currentDate ? 'OVERDUE' : 'IN PROGRESS'}
 `).join('\n') || 'No focus areas available'}
     `;
 
-    const prompt = `As a professional executive coach, analyze the following data from a ${userRole || 'professional'} and provide personalized insights, recommendations, and coaching advice. Focus on:
+    const prompt = `As a professional executive coach, analyze the following data and provide structured insights in JSON format. 
 
-1. Leadership development patterns
-2. Goal achievement strategies
-3. Areas for improvement
-4. Strengths to leverage
-5. Actionable next steps
+    IMPORTANT: Respond with ONLY a valid JSON object (no markdown, no code blocks, no additional text).
 
-Data to analyze:
-${context}
+    Structure your response as follows:
+    {
+      "summary": "Brief 2-3 sentence executive summary",
+      "keyMetrics": {
+        "progressScore": number (0-100),
+        "completionRate": number (0-100),
+        "riskLevel": "LOW" | "MEDIUM" | "HIGH"
+      },
+      "strengths": ["strength1", "strength2", "strength3"],
+      "concerns": ["concern1", "concern2", "concern3"],
+      "blockers": ["blocker1", "blocker2"],
+      "recommendations": [
+        {
+          "priority": "HIGH" | "MEDIUM" | "LOW",
+          "action": "specific action item",
+          "timeline": "suggested timeframe",
+          "category": "GOAL_SETTING" | "TIME_MANAGEMENT" | "COMMUNICATION" | "STRATEGY"
+        }
+      ],
+      "monthlyTrend": {
+        "direction": "IMPROVING" | "DECLINING" | "STABLE",
+        "insight": "explanation of trend"
+      },
+      "nextSteps": ["immediate next step 1", "immediate next step 2", "immediate next step 3"]
+    }
 
-Provide a comprehensive coaching summary that is encouraging, actionable, and professional. Structure your response with clear sections and specific recommendations. Keep the tone supportive and motivational.`;
+    Data to analyze:
+    ${context}
+
+    Focus on being actionable, specific, and supportive while maintaining professional coaching standards.`;
 
     console.log('Making request to OpenAI...');
 
@@ -81,7 +131,7 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
         messages: [
           { 
             role: 'system', 
-            content: 'You are a professional executive coach and leadership development expert. Provide insightful, actionable coaching advice based on the data provided. Be encouraging and specific in your recommendations.' 
+            content: 'You are a professional executive coach. Respond with valid JSON only - no markdown formatting, no code blocks, no additional text.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -102,8 +152,32 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
       throw new Error('Invalid response from OpenAI API');
     }
 
-    const insights = data.choices[0].message.content;
-    console.log('Generated insights, length:', insights?.length);
+    const rawInsights = data.choices[0].message.content;
+    console.log('Raw AI response:', rawInsights);
+
+    let structuredInsights;
+    try {
+      structuredInsights = JSON.parse(rawInsights);
+    } catch (parseError) {
+      console.error('Failed to parse AI response as JSON:', parseError);
+      // Fallback to storing raw content
+      structuredInsights = {
+        summary: "AI insights generated successfully",
+        keyMetrics: { progressScore: avgProgress, completionRate: Math.round((completedFocusAreas / Math.max(totalFocusAreas, 1)) * 100), riskLevel: overdueItems > 2 ? "HIGH" : overdueItems > 0 ? "MEDIUM" : "LOW" },
+        rawContent: rawInsights
+      };
+    }
+
+    // Add analytics to structured insights
+    structuredInsights.analytics = {
+      totalFocusAreas,
+      completedFocusAreas,
+      avgProgress,
+      recentDiaryEntries,
+      submittedQuestionnaires,
+      totalQuestionnaires,
+      overdueItems
+    };
 
     // Save insights to database
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -116,8 +190,8 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
       .from('ai_summaries')
       .insert([{
         user_id: userId,
-        type: 'coaching_insights',
-        content: insights,
+        type: 'structured_insights',
+        content: JSON.stringify(structuredInsights),
         quarter: quarter,
         year: year
       }]);
@@ -127,10 +201,10 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
       throw insertError;
     }
 
-    console.log('Successfully saved insights to database');
+    console.log('Successfully saved structured insights to database');
 
     return new Response(
-      JSON.stringify({ insights }),
+      JSON.stringify({ insights: structuredInsights }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
