@@ -3,7 +3,8 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+// Hardcode your OpenAI API key here
+const openAIApiKey = 'your-openai-api-key-here';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -21,12 +22,11 @@ serve(async (req) => {
     const { userId, questionnaires, diaryEntries, focusAreas, userRole } = await req.json();
 
     console.log('Received request for user:', userId);
-    console.log('OpenAI API Key present:', !!openAIApiKey);
 
-    if (!openAIApiKey) {
+    if (!openAIApiKey || openAIApiKey === 'your-openai-api-key-here') {
       console.error('OpenAI API key not configured');
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured. Please add your API key in the settings.' }),
+        JSON.stringify({ error: 'OpenAI API key not configured on server. Please contact administrator.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -140,7 +140,7 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
     console.error('Error in generate-insights function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to generate insights. Please check your API key and try again.' 
+        error: error.message || 'Failed to generate insights. Please contact administrator.' 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
