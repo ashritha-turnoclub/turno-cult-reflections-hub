@@ -1,10 +1,9 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Hardcode your OpenAI API key here
-const openAIApiKey = 'your-openai-api-key-here';
+// Replace this with your actual OpenAI API key
+const openAIApiKey = 'sk-your-actual-openai-api-key-here';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -23,7 +22,7 @@ serve(async (req) => {
 
     console.log('Received request for user:', userId);
 
-    if (!openAIApiKey || openAIApiKey === 'your-openai-api-key-here') {
+    if (!openAIApiKey || openAIApiKey === 'sk-your-actual-openai-api-key-here') {
       console.error('OpenAI API key not configured');
       return new Response(
         JSON.stringify({ error: 'OpenAI API key not configured on server. Please contact administrator.' }),
@@ -31,7 +30,6 @@ serve(async (req) => {
       );
     }
 
-    // Prepare context for AI
     const context = `
 Role: ${userRole?.toUpperCase() || 'UNKNOWN'}
 
@@ -79,7 +77,7 @@ Provide a comprehensive coaching summary that is encouraging, actionable, and pr
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { 
             role: 'system', 
