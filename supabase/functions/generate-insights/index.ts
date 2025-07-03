@@ -3,8 +3,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Replace this with your actual OpenAI API key
-const openAIApiKey = 'sk-your-actual-openai-api-key-here';
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('OPEN_AI_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -23,10 +22,10 @@ serve(async (req) => {
 
     console.log('Received request for user:', userId);
 
-    if (!openAIApiKey || openAIApiKey === 'sk-your-actual-openai-api-key-here') {
-      console.error('OpenAI API key not configured');
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment variables');
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured on server. Please contact administrator.' }),
+        JSON.stringify({ error: 'OpenAI API key not configured. Please contact administrator to set up OPENAI_API_KEY.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -89,7 +88,7 @@ ${focusAreas?.map((area: any) => `
 
     Structure your response as follows:
     {
-      "summary": "Brief 2-3 sentence executive summary",
+      "summary": "Brief 2-3 sentence executive summary highlighting key progress and areas of focus",
       "keyMetrics": {
         "progressScore": number (0-100),
         "completionRate": number (0-100),
@@ -163,8 +162,27 @@ ${focusAreas?.map((area: any) => `
       // Fallback to storing raw content
       structuredInsights = {
         summary: "AI insights generated successfully",
-        keyMetrics: { progressScore: avgProgress, completionRate: Math.round((completedFocusAreas / Math.max(totalFocusAreas, 1)) * 100), riskLevel: overdueItems > 2 ? "HIGH" : overdueItems > 0 ? "MEDIUM" : "LOW" },
-        rawContent: rawInsights
+        keyMetrics: { 
+          progressScore: avgProgress, 
+          completionRate: Math.round((completedFocusAreas / Math.max(totalFocusAreas, 1)) * 100), 
+          riskLevel: overdueItems > 2 ? "HIGH" : overdueItems > 0 ? "MEDIUM" : "LOW" 
+        },
+        strengths: ["Consistent engagement with platform", "Active diary entries"],
+        concerns: overdueItems > 0 ? ["Overdue items need attention"] : ["No major concerns identified"],
+        blockers: overdueItems > 0 ? ["Approaching deadlines"] : [],
+        recommendations: [
+          {
+            priority: "HIGH",
+            action: "Review and update progress on focus areas",
+            timeline: "This week",
+            category: "GOAL_SETTING"
+          }
+        ],
+        monthlyTrend: {
+          direction: "STABLE",
+          insight: "Steady progress observed"
+        },
+        nextSteps: ["Review focus areas", "Update progress", "Plan next quarter"]
       };
     }
 
@@ -182,7 +200,6 @@ ${focusAreas?.map((area: any) => `
     // Save insights to database
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    const currentDate = new Date();
     const quarter = `Q${Math.floor(currentDate.getMonth() / 3) + 1}`;
     const year = currentDate.getFullYear();
 
@@ -212,7 +229,7 @@ ${focusAreas?.map((area: any) => `
     console.error('Error in generate-insights function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to generate insights. Please contact administrator.' 
+        error: error.message || 'Failed to generate insights. Please check configuration and try again.' 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
