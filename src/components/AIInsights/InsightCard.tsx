@@ -7,7 +7,7 @@ import { AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, Minus } fr
 interface InsightCardProps {
   insight: {
     summary: string;
-    keyMetrics: {
+    keyMetrics?: {
       progressScore: number;
       completionRate: number;
       riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -31,6 +31,13 @@ interface InsightCardProps {
 }
 
 const InsightCard = ({ insight }: InsightCardProps) => {
+  // Provide fallback values for keyMetrics
+  const keyMetrics = insight.keyMetrics || {
+    progressScore: 0,
+    completionRate: 0,
+    riskLevel: 'LOW' as const
+  };
+
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'HIGH': return 'destructive';
@@ -59,8 +66,8 @@ const InsightCard = ({ insight }: InsightCardProps) => {
               {insight.summary}
             </CardDescription>
           </div>
-          <Badge variant={getRiskColor(insight.keyMetrics.riskLevel)}>
-            {insight.keyMetrics.riskLevel} Risk
+          <Badge variant={getRiskColor(keyMetrics.riskLevel)}>
+            {keyMetrics.riskLevel} Risk
           </Badge>
         </div>
       </CardHeader>
@@ -70,16 +77,16 @@ const InsightCard = ({ insight }: InsightCardProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Progress Score</span>
-              <span className="text-sm text-gray-600">{insight.keyMetrics.progressScore}%</span>
+              <span className="text-sm text-gray-600">{keyMetrics.progressScore}%</span>
             </div>
-            <Progress value={insight.keyMetrics.progressScore} className="h-2" />
+            <Progress value={keyMetrics.progressScore} className="h-2" />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Completion Rate</span>
-              <span className="text-sm text-gray-600">{insight.keyMetrics.completionRate}%</span>
+              <span className="text-sm text-gray-600">{keyMetrics.completionRate}%</span>
             </div>
-            <Progress value={insight.keyMetrics.completionRate} className="h-2" />
+            <Progress value={keyMetrics.completionRate} className="h-2" />
           </div>
           <div className="flex items-center space-x-2">
             {getTrendIcon(insight.monthlyTrend?.direction || 'STABLE')}
