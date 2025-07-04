@@ -6,10 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Save, X, Calendar, Tag } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+interface ActionItem {
+  title: string;
+  deadline?: string;
+  completed: boolean;
+  completed_at?: string;
+}
 
 interface DiaryEntry {
   id?: string;
@@ -17,7 +26,8 @@ interface DiaryEntry {
   category: string | null;
   notes: string;
   timeline: string | null;
-  checklist: string[];
+  checklist: ActionItem[];
+  tags: string[];
 }
 
 interface DiaryFormProps {
@@ -25,6 +35,11 @@ interface DiaryFormProps {
   onSave: () => void;
   onCancel: () => void;
 }
+
+const defaultTags = [
+  'Sales', 'Marketing', 'Business', 'Lending', 'Battery', 
+  'Credit Operations', 'Collections', 'Finance', 'HR', 'Operations'
+];
 
 export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
   const { userProfile } = useAuth();
@@ -35,7 +50,8 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
     category: null,
     notes: '',
     timeline: null,
-    checklist: []
+    checklist: [],
+    tags: []
   });
 
   const categories = [
@@ -52,7 +68,14 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
     if (entry) {
       setFormData({
         ...entry,
-        checklist: Array.isArray(entry.checklist) ? entry.checklist : []
+        checklist: Array.isArray(entry.checklist) 
+          ? entry.checklist.map(item => 
+              typeof item === 'string' 
+                ? { title: item, completed: false }
+                : item
+            )
+          : [],
+        tags: Array.isArray(entry.tags) ? entry.tags : []
       });
     }
   }, [entry]);
@@ -67,11 +90,11 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
       const dataToSave = {
         ...formData,
         user_id: userProfile.id,
-        checklist: formData.checklist
+        checklist: formData.checklist,
+        tags: formData.tags
       };
 
       if (entry?.id) {
-        // Update existing entry
         const { error } = await supabase
           .from('diary_entries')
           .update(dataToSave)
@@ -84,7 +107,6 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
           description: "Your diary entry has been updated successfully.",
         });
       } else {
-        // Create new entry
         const { error } = await supabase
           .from('diary_entries')
           .insert([dataToSave]);
@@ -110,24 +132,48 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
     }
   };
 
-  const addChecklistItem = () => {
+  const addActionItem = () => {
     setFormData(prev => ({
       ...prev,
-      checklist: [...prev.checklist, '']
+      checklist: [...prev.checklist, { title: '', completed: false }]
     }));
   };
 
-  const updateChecklistItem = (index: number, value: string) => {
+  const updateActionItem = (index: number, field: keyof ActionItem, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
-      checklist: prev.checklist.map((item, i) => i === index ? value : item)
+      checklist: prev.checklist.map((item, i) => 
+        i === index 
+          ? { 
+              ...item, 
+              [field]: value,
+              ...(field === 'completed' && value === true ? { completed_at: new Date().toISOString() } : {})
+            }
+          : item
+      )
     }));
   };
 
-  const removeChecklistItem = (index: number) => {
+  const removeActionItem = (index: number) => {
     setFormData(prev => ({
       ...prev,
       checklist: prev.checklist.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addTag = (tag: string) => {
+    if (!formData.tags.includes(tag)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag]
+      }));
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(t => t !== tag)
     }));
   };
 
@@ -170,6 +216,41 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
           </div>
 
           <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {formData.tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                  {tag}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-4 w-4 p-0"
+                    onClick={() => removeTag(tag)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
+            <Select onValueChange={addTag}>
+              <SelectTrigger>
+                <SelectValue placeholder="Add tags" />
+              </SelectTrigger>
+              <SelectContent>
+                {defaultTags.filter(tag => !formData.tags.includes(tag)).map(tag => (
+                  <SelectItem key={tag} value={tag}>
+                    <div className="flex items-center">
+                      <Tag className="h-4 w-4 mr-2" />
+                      {tag}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="timeline">Timeline</Label>
             <Input
               id="timeline"
@@ -194,27 +275,49 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Action Items</Label>
-              <Button type="button" onClick={addChecklistItem} size="sm">
+              <Button type="button" onClick={addActionItem} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
               </Button>
             </div>
             
             {formData.checklist.map((item, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Input
-                  value={item}
-                  onChange={(e) => updateChecklistItem(index, e.target.value)}
-                  placeholder="Enter action item"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeChecklistItem(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div key={index} className="space-y-2 p-4 border rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={item.completed}
+                    onCheckedChange={(checked) => updateActionItem(index, 'completed', checked as boolean)}
+                  />
+                  <Input
+                    value={item.title}
+                    onChange={(e) => updateActionItem(index, 'title', e.target.value)}
+                    placeholder="Enter action item"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeActionItem(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center space-x-2 ml-6">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <Input
+                    type="date"
+                    value={item.deadline || ''}
+                    onChange={(e) => updateActionItem(index, 'deadline', e.target.value)}
+                    placeholder="Set deadline"
+                    className="w-40"
+                  />
+                  {item.completed && item.completed_at && (
+                    <span className="text-sm text-green-600">
+                      Completed on {new Date(item.completed_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

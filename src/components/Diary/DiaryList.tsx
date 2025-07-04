@@ -3,12 +3,19 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Calendar, FileText, CheckSquare } from "lucide-react";
+import { Edit, Trash2, Calendar, FileText, CheckSquare, Tag } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SearchSortHeader } from '@/components/ui/search-sort-header';
 import { useSearch, SortOption } from '@/hooks/useSearch';
+
+interface ActionItem {
+  title: string;
+  deadline?: string;
+  completed: boolean;
+  completed_at?: string;
+}
 
 interface DiaryEntry {
   id: string;
@@ -16,7 +23,8 @@ interface DiaryEntry {
   category: string | null;
   notes: string;
   timeline: string | null;
-  checklist: string[];
+  checklist: ActionItem[];
+  tags: string[];
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -42,7 +50,7 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
     filteredData: filteredEntries
   } = useSearch({
     data: entries,
-    searchFields: ['title', 'notes'],
+    searchFields: ['title', 'notes', 'tags'],
     sortOptions,
     defaultSort: 'created_at-desc'
   });
@@ -64,12 +72,16 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
 
       if (error) throw error;
 
-      // Transform data to handle checklist properly
       const transformedEntries: DiaryEntry[] = (data || []).map(entry => ({
         ...entry,
         checklist: Array.isArray(entry.checklist) 
-          ? entry.checklist.filter((item): item is string => typeof item === 'string')
-          : []
+          ? entry.checklist.map((item: any) => 
+              typeof item === 'string' 
+                ? { title: item, completed: false }
+                : item
+            )
+          : [],
+        tags: Array.isArray(entry.tags) ? entry.tags : []
       }));
 
       setEntries(transformedEntries);
@@ -112,7 +124,6 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
     }
   };
 
-
   if (loading) {
     return (
       <Card>
@@ -143,54 +154,69 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
           </CardContent>
         </Card>
       ) : (
-        filteredEntries.map((entry) => (
-          <Card key={entry.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{entry.title}</CardTitle>
-                  <CardDescription className="mt-2">
-                    {entry.notes.substring(0, 150)}
-                    {entry.notes.length > 150 && '...'}
-                  </CardDescription>
-                  <div className="flex items-center space-x-3 mt-3">
-                    {entry.category && (
-                      <Badge variant="outline">{entry.category}</Badge>
-                    )}
-                    {entry.timeline && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(entry.timeline).toLocaleDateString()}
-                      </div>
-                    )}
-                    {entry.checklist.length > 0 && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CheckSquare className="h-4 w-4 mr-1" />
-                        {entry.checklist.length} items
+        filteredEntries.map((entry) => {
+          const completedItems = entry.checklist.filter(item => item.completed).length;
+          const totalItems = entry.checklist.length;
+          
+          return (
+            <Card key={entry.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{entry.title}</CardTitle>
+                    <CardDescription className="mt-2">
+                      {entry.notes.substring(0, 150)}
+                      {entry.notes.length > 150 && '...'}
+                    </CardDescription>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      {entry.category && (
+                        <Badge variant="outline">{entry.category}</Badge>
+                      )}
+                      {entry.timeline && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          {new Date(entry.timeline).toLocaleDateString()}
+                        </div>
+                      )}
+                      {totalItems > 0 && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <CheckSquare className="h-4 w-4 mr-1" />
+                          {completedItems}/{totalItems} completed
+                        </div>
+                      )}
+                    </div>
+                    {entry.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {entry.tags.map(tag => (
+                          <Badge key={tag} variant="secondary" className="text-xs">
+                            <Tag className="h-3 w-3 mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
                       </div>
                     )}
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditEntry(entry)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteEntry(entry.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEditEntry(entry)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteEntry(entry.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        ))
+              </CardHeader>
+            </Card>
+          );
+        })
       )}
     </div>
   );
