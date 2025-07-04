@@ -17,7 +17,15 @@ interface DiaryEntry {
   category: string;
   notes: string;
   timeline: string;
-  checklist: string[];
+  checklist: ActionItem[];
+  tags: string[];
+}
+
+interface ActionItem {
+  title: string;
+  deadline?: string;
+  completed: boolean;
+  completed_at?: string;
 }
 
 const Diary = () => {

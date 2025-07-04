@@ -74,8 +74,8 @@ export const AssignedFocusAreas = () => {
                 : item
             )
           : [],
-        tags: Array.isArray(area.tags) ? area.tags : [],
-        collaborators: Array.isArray(area.collaborators) ? area.collaborators : [],
+        tags: Array.isArray((area as any).tags) ? (area as any).tags : [],
+        collaborators: Array.isArray((area as any).collaborators) ? (area as any).collaborators : [],
         owner_name: area.users?.name || 'Unknown'
       }));
 
@@ -125,7 +125,7 @@ export const AssignedFocusAreas = () => {
       const { error } = await supabase
         .from('focus_areas')
         .update({ 
-          checklist: updatedChecklist,
+          checklist: updatedChecklist as any,
           progress_percent: newProgress
         })
         .eq('id', areaId);

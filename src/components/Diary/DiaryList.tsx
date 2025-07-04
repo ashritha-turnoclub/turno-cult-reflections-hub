@@ -81,7 +81,7 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
                 : item
             )
           : [],
-        tags: Array.isArray(entry.tags) ? entry.tags : []
+        tags: Array.isArray((entry as any).tags) ? (entry as any).tags : []
       }));
 
       setEntries(transformedEntries);

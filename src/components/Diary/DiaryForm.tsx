@@ -90,7 +90,7 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
       const dataToSave = {
         ...formData,
         user_id: userProfile.id,
-        checklist: formData.checklist,
+        checklist: formData.checklist as any,
         tags: formData.tags
       };
 

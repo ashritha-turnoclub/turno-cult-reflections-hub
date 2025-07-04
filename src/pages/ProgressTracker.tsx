@@ -131,8 +131,8 @@ const ProgressTracker = () => {
                 : item
             )
           : [],
-        tags: Array.isArray(area.tags) ? area.tags : [],
-        collaborators: Array.isArray(area.collaborators) ? area.collaborators : []
+        tags: Array.isArray((area as any).tags) ? (area as any).tags : [],
+        collaborators: Array.isArray((area as any).collaborators) ? (area as any).collaborators : []
       }));
 
       setFocusAreas(transformedAreas);
@@ -168,9 +168,9 @@ const ProgressTracker = () => {
         year: formData.year,
         deadline: formData.deadline || null,
         progress_percent: calculatedProgress,
-        checklist: formData.checklist.filter(item => item.title.trim()),
+        checklist: formData.checklist.filter(item => item.title.trim()) as any,
         tags: formData.tags,
-        collaborators: formData.collaborators
+        collaborators: formData.collaborators as any
       };
 
       if (editingArea) {
