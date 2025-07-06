@@ -66,16 +66,19 @@ export const AssignedFocusAreas = () => {
       if (error) throw error;
 
       const transformedAreas: AssignedFocusArea[] = (data || []).map(area => {
+        // Cast to any to access new fields that aren't in generated types yet
+        const areaWithNewFields = area as any;
+        
         let checklist: ActionItem[] = [];
         let tags: string[] = [];
         let collaborators: Collaborator[] = [];
 
         // Parse checklist
-        if (area.checklist) {
+        if (areaWithNewFields.checklist) {
           try {
-            const parsed = typeof area.checklist === 'string' 
-              ? JSON.parse(area.checklist) 
-              : area.checklist;
+            const parsed = typeof areaWithNewFields.checklist === 'string' 
+              ? JSON.parse(areaWithNewFields.checklist) 
+              : areaWithNewFields.checklist;
             checklist = Array.isArray(parsed) 
               ? parsed.map((item: any) => 
                   typeof item === 'string' 
@@ -90,11 +93,11 @@ export const AssignedFocusAreas = () => {
         }
 
         // Parse tags
-        if (area.tags) {
+        if (areaWithNewFields.tags) {
           try {
-            const parsed = typeof area.tags === 'string' 
-              ? JSON.parse(area.tags) 
-              : area.tags;
+            const parsed = typeof areaWithNewFields.tags === 'string' 
+              ? JSON.parse(areaWithNewFields.tags) 
+              : areaWithNewFields.tags;
             tags = Array.isArray(parsed) ? parsed : [];
           } catch (e) {
             console.error('Error parsing tags:', e);
@@ -103,11 +106,11 @@ export const AssignedFocusAreas = () => {
         }
 
         // Parse collaborators
-        if (area.collaborators) {
+        if (areaWithNewFields.collaborators) {
           try {
-            const parsed = typeof area.collaborators === 'string' 
-              ? JSON.parse(area.collaborators) 
-              : area.collaborators;
+            const parsed = typeof areaWithNewFields.collaborators === 'string' 
+              ? JSON.parse(areaWithNewFields.collaborators) 
+              : areaWithNewFields.collaborators;
             collaborators = Array.isArray(parsed) ? parsed : [];
           } catch (e) {
             console.error('Error parsing collaborators:', e);
@@ -120,7 +123,7 @@ export const AssignedFocusAreas = () => {
           checklist,
           tags,
           collaborators,
-          owner_name: area.users?.name || 'Unknown'
+          owner_name: areaWithNewFields.users?.name || 'Unknown'
         };
       });
 

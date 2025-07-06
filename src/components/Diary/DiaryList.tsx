@@ -73,15 +73,18 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
       if (error) throw error;
 
       const transformedEntries: DiaryEntry[] = (data || []).map(entry => {
+        // Cast to any to access new fields that aren't in generated types yet
+        const entryWithNewFields = entry as any;
+        
         let checklist: ActionItem[] = [];
         let tags: string[] = [];
 
         // Parse checklist
-        if (entry.checklist) {
+        if (entryWithNewFields.checklist) {
           try {
-            const parsed = typeof entry.checklist === 'string' 
-              ? JSON.parse(entry.checklist) 
-              : entry.checklist;
+            const parsed = typeof entryWithNewFields.checklist === 'string' 
+              ? JSON.parse(entryWithNewFields.checklist) 
+              : entryWithNewFields.checklist;
             checklist = Array.isArray(parsed) 
               ? parsed.map((item: any) => 
                   typeof item === 'string' 
@@ -96,11 +99,11 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
         }
 
         // Parse tags
-        if (entry.tags) {
+        if (entryWithNewFields.tags) {
           try {
-            const parsed = typeof entry.tags === 'string' 
-              ? JSON.parse(entry.tags) 
-              : entry.tags;
+            const parsed = typeof entryWithNewFields.tags === 'string' 
+              ? JSON.parse(entryWithNewFields.tags) 
+              : entryWithNewFields.tags;
             tags = Array.isArray(parsed) ? parsed : [];
           } catch (e) {
             console.error('Error parsing tags:', e);
