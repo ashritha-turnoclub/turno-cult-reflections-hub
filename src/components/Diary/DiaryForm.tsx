@@ -88,10 +88,13 @@ export const DiaryForm = ({ entry, onSave, onCancel }: DiaryFormProps) => {
       setLoading(true);
       
       const dataToSave = {
-        ...formData,
+        title: formData.title,
+        category: formData.category,
+        notes: formData.notes,
+        timeline: formData.timeline,
         user_id: userProfile.id,
-        checklist: formData.checklist as any,
-        tags: formData.tags
+        checklist: JSON.stringify(formData.checklist),
+        tags: JSON.stringify(formData.tags)
       };
 
       if (entry?.id) {

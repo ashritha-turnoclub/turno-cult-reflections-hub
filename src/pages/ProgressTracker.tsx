@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { AppSidebar } from "@/components/Layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -122,18 +121,63 @@ const ProgressTracker = () => {
 
       if (error) throw error;
 
-      const transformedAreas: FocusArea[] = (data || []).map(area => ({
-        ...area,
-        checklist: Array.isArray(area.checklist) 
-          ? area.checklist.map((item: any) => 
-              typeof item === 'string' 
-                ? { title: item, completed: false }
-                : item
-            )
-          : [],
-        tags: Array.isArray((area as any).tags) ? (area as any).tags : [],
-        collaborators: Array.isArray((area as any).collaborators) ? (area as any).collaborators : []
-      }));
+      const transformedAreas: FocusArea[] = (data || []).map(area => {
+        let checklist: ActionItem[] = [];
+        let tags: string[] = [];
+        let collaborators: Collaborator[] = [];
+
+        // Parse checklist
+        if (area.checklist) {
+          try {
+            const parsed = typeof area.checklist === 'string' 
+              ? JSON.parse(area.checklist) 
+              : area.checklist;
+            checklist = Array.isArray(parsed) 
+              ? parsed.map((item: any) => 
+                  typeof item === 'string' 
+                    ? { title: item, completed: false }
+                    : item
+                )
+              : [];
+          } catch (e) {
+            console.error('Error parsing checklist:', e);
+            checklist = [];
+          }
+        }
+
+        // Parse tags
+        if (area.tags) {
+          try {
+            const parsed = typeof area.tags === 'string' 
+              ? JSON.parse(area.tags) 
+              : area.tags;
+            tags = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Error parsing tags:', e);
+            tags = [];
+          }
+        }
+
+        // Parse collaborators
+        if (area.collaborators) {
+          try {
+            const parsed = typeof area.collaborators === 'string' 
+              ? JSON.parse(area.collaborators) 
+              : area.collaborators;
+            collaborators = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Error parsing collaborators:', e);
+            collaborators = [];
+          }
+        }
+
+        return {
+          ...area,
+          checklist,
+          tags,
+          collaborators
+        };
+      });
 
       setFocusAreas(transformedAreas);
     } catch (error) {
@@ -168,9 +212,9 @@ const ProgressTracker = () => {
         year: formData.year,
         deadline: formData.deadline || null,
         progress_percent: calculatedProgress,
-        checklist: formData.checklist.filter(item => item.title.trim()) as any,
-        tags: formData.tags,
-        collaborators: formData.collaborators as any
+        checklist: JSON.stringify(formData.checklist.filter(item => item.title.trim())),
+        tags: JSON.stringify(formData.tags),
+        collaborators: JSON.stringify(formData.collaborators)
       };
 
       if (editingArea) {

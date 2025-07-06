@@ -72,17 +72,48 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
 
       if (error) throw error;
 
-      const transformedEntries: DiaryEntry[] = (data || []).map(entry => ({
-        ...entry,
-        checklist: Array.isArray(entry.checklist) 
-          ? entry.checklist.map((item: any) => 
-              typeof item === 'string' 
-                ? { title: item, completed: false }
-                : item
-            )
-          : [],
-        tags: Array.isArray((entry as any).tags) ? (entry as any).tags : []
-      }));
+      const transformedEntries: DiaryEntry[] = (data || []).map(entry => {
+        let checklist: ActionItem[] = [];
+        let tags: string[] = [];
+
+        // Parse checklist
+        if (entry.checklist) {
+          try {
+            const parsed = typeof entry.checklist === 'string' 
+              ? JSON.parse(entry.checklist) 
+              : entry.checklist;
+            checklist = Array.isArray(parsed) 
+              ? parsed.map((item: any) => 
+                  typeof item === 'string' 
+                    ? { title: item, completed: false }
+                    : item
+                )
+              : [];
+          } catch (e) {
+            console.error('Error parsing checklist:', e);
+            checklist = [];
+          }
+        }
+
+        // Parse tags
+        if (entry.tags) {
+          try {
+            const parsed = typeof entry.tags === 'string' 
+              ? JSON.parse(entry.tags) 
+              : entry.tags;
+            tags = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Error parsing tags:', e);
+            tags = [];
+          }
+        }
+
+        return {
+          ...entry,
+          checklist,
+          tags
+        };
+      });
 
       setEntries(transformedEntries);
     } catch (error) {

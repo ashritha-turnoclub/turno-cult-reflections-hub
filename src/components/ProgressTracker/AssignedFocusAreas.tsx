@@ -65,19 +65,64 @@ export const AssignedFocusAreas = () => {
 
       if (error) throw error;
 
-      const transformedAreas: AssignedFocusArea[] = (data || []).map(area => ({
-        ...area,
-        checklist: Array.isArray(area.checklist) 
-          ? area.checklist.map((item: any) => 
-              typeof item === 'string' 
-                ? { title: item, completed: false }
-                : item
-            )
-          : [],
-        tags: Array.isArray((area as any).tags) ? (area as any).tags : [],
-        collaborators: Array.isArray((area as any).collaborators) ? (area as any).collaborators : [],
-        owner_name: area.users?.name || 'Unknown'
-      }));
+      const transformedAreas: AssignedFocusArea[] = (data || []).map(area => {
+        let checklist: ActionItem[] = [];
+        let tags: string[] = [];
+        let collaborators: Collaborator[] = [];
+
+        // Parse checklist
+        if (area.checklist) {
+          try {
+            const parsed = typeof area.checklist === 'string' 
+              ? JSON.parse(area.checklist) 
+              : area.checklist;
+            checklist = Array.isArray(parsed) 
+              ? parsed.map((item: any) => 
+                  typeof item === 'string' 
+                    ? { title: item, completed: false }
+                    : item
+                )
+              : [];
+          } catch (e) {
+            console.error('Error parsing checklist:', e);
+            checklist = [];
+          }
+        }
+
+        // Parse tags
+        if (area.tags) {
+          try {
+            const parsed = typeof area.tags === 'string' 
+              ? JSON.parse(area.tags) 
+              : area.tags;
+            tags = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Error parsing tags:', e);
+            tags = [];
+          }
+        }
+
+        // Parse collaborators
+        if (area.collaborators) {
+          try {
+            const parsed = typeof area.collaborators === 'string' 
+              ? JSON.parse(area.collaborators) 
+              : area.collaborators;
+            collaborators = Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Error parsing collaborators:', e);
+            collaborators = [];
+          }
+        }
+
+        return {
+          ...area,
+          checklist,
+          tags,
+          collaborators,
+          owner_name: area.users?.name || 'Unknown'
+        };
+      });
 
       setAssignedAreas(transformedAreas);
     } catch (error) {
@@ -125,7 +170,7 @@ export const AssignedFocusAreas = () => {
       const { error } = await supabase
         .from('focus_areas')
         .update({ 
-          checklist: updatedChecklist as any,
+          checklist: JSON.stringify(updatedChecklist),
           progress_percent: newProgress
         })
         .eq('id', areaId);

@@ -8,8 +8,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { DiaryList } from '@/components/Diary/DiaryList';
 import { DiaryForm } from '@/components/Diary/DiaryForm';
 import { NotificationBell } from '@/components/Notifications/NotificationBell';
-import { SearchSortHeader } from '@/components/ui/search-sort-header';
 import { useSearch } from '@/hooks/useSearch';
+
+interface ActionItem {
+  title: string;
+  deadline?: string;
+  completed: boolean;
+  completed_at?: string;
+}
 
 interface DiaryEntry {
   id?: string;
@@ -19,13 +25,6 @@ interface DiaryEntry {
   timeline: string;
   checklist: ActionItem[];
   tags: string[];
-}
-
-interface ActionItem {
-  title: string;
-  deadline?: string;
-  completed: boolean;
-  completed_at?: string;
 }
 
 const Diary = () => {
