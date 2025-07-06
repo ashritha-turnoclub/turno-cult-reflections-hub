@@ -39,7 +39,9 @@ const Diary = () => {
     { value: 'timeline-asc', label: 'Timeline (Earliest)' },
     { value: 'timeline-desc', label: 'Timeline (Latest)' },
     { value: 'created_at-desc', label: 'Created (Newest)' },
-    { value: 'created_at-asc', label: 'Created (Oldest)' }
+    { value: 'created_at-asc', label: 'Created (Oldest)' },
+    { value: 'tags-asc', label: 'Tags (A-Z)' },
+    { value: 'tags-desc', label: 'Tags (Z-A)' }
   ];
 
   const handleCreateNew = () => {

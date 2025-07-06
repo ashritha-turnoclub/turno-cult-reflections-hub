@@ -33,6 +33,12 @@ export const useSearch = <T>({
           if (typeof value === 'string') {
             return value.toLowerCase().includes(lowercaseSearch);
           }
+          // Handle array fields like tags
+          if (Array.isArray(value)) {
+            return value.some(v => 
+              typeof v === 'string' && v.toLowerCase().includes(lowercaseSearch)
+            );
+          }
           return false;
         })
       );
@@ -58,6 +64,15 @@ export const useSearch = <T>({
           const aDate = new Date(aValue as string);
           const bDate = new Date(bValue as string);
           return direction === 'desc' ? bDate.getTime() - aDate.getTime() : aDate.getTime() - bDate.getTime();
+        }
+
+        // Handle tags sorting
+        if (field === 'tags') {
+          const aFirstTag = Array.isArray(aValue) && aValue.length > 0 ? aValue[0] : '';
+          const bFirstTag = Array.isArray(bValue) && bValue.length > 0 ? bValue[0] : '';
+          return direction === 'desc' 
+            ? bFirstTag.localeCompare(aFirstTag)
+            : aFirstTag.localeCompare(bFirstTag);
         }
 
         // Handle string sorting

@@ -61,7 +61,7 @@ export const AssignedFocusAreas = () => {
           *,
           users!focus_areas_user_id_fkey(name)
         `)
-        .contains('collaborators', [{ user_id: userProfile?.id }]);
+        .filter('collaborators', 'cs', JSON.stringify([{ user_id: userProfile?.id }]));
 
       if (error) throw error;
 

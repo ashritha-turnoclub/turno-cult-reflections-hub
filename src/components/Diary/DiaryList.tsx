@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Calendar, FileText, CheckSquare, Tag } from "lucide-react";
+import { Edit, Trash2, Calendar, FileText, CheckSquare, Tag, Check } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -195,41 +195,70 @@ export const DiaryList = ({ onEditEntry, refreshKey, sortOptions }: DiaryListPro
           return (
             <Card key={entry.id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{entry.title}</CardTitle>
-                    <CardDescription className="mt-2">
-                      {entry.notes.substring(0, 150)}
-                      {entry.notes.length > 150 && '...'}
-                    </CardDescription>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      {entry.category && (
-                        <Badge variant="outline">{entry.category}</Badge>
-                      )}
-                      {entry.timeline && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(entry.timeline).toLocaleDateString()}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{entry.title}</CardTitle>
+                      <CardDescription className="mt-2">
+                        {entry.notes.substring(0, 150)}
+                        {entry.notes.length > 150 && '...'}
+                      </CardDescription>
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        {entry.category && (
+                          <Badge variant="outline">{entry.category}</Badge>
+                        )}
+                        {entry.timeline && (
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Calendar className="h-4 w-4 mr-1" />
+                            {new Date(entry.timeline).toLocaleDateString()}
+                          </div>
+                        )}
+                        {totalItems > 0 && (
+                          <div className="flex items-center text-sm text-gray-500">
+                            <CheckSquare className="h-4 w-4 mr-1" />
+                            {completedItems}/{totalItems} completed
+                          </div>
+                        )}
+                      </div>
+                      {entry.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {entry.tags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="text-xs">
+                              <Tag className="h-3 w-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
                         </div>
                       )}
-                      {totalItems > 0 && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <CheckSquare className="h-4 w-4 mr-1" />
-                          {completedItems}/{totalItems} completed
+                      {entry.checklist.length > 0 && (
+                        <div className="mt-3">
+                          <h4 className="text-sm font-medium mb-2">Action Items</h4>
+                          <div className="space-y-1">
+                            {entry.checklist.slice(0, 3).map((item, index) => (
+                              <div key={index} className="flex items-center space-x-2 text-sm">
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                                  item.completed ? 'bg-green-100 border-green-300' : 'border-gray-300'
+                                }`}>
+                                  {item.completed && <Check className="h-3 w-3 text-green-600" />}
+                                </div>
+                                <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                                  {item.title}
+                                </span>
+                                {item.deadline && (
+                                  <span className="text-xs text-gray-400">
+                                    Due: {new Date(item.deadline).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {entry.checklist.length > 3 && (
+                              <div className="text-xs text-gray-500">
+                                +{entry.checklist.length - 3} more items
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-                    {entry.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {entry.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            <Tag className="h-3 w-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="ghost"
