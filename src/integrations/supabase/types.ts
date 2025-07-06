@@ -93,9 +93,11 @@ export type Database = {
         Row: {
           category: string | null
           checklist: Json | null
+          collaborators: Json | null
           created_at: string
           id: string
           notes: string
+          tags: Json | null
           timeline: string | null
           title: string
           updated_at: string
@@ -104,9 +106,11 @@ export type Database = {
         Insert: {
           category?: string | null
           checklist?: Json | null
+          collaborators?: Json | null
           created_at?: string
           id?: string
           notes: string
+          tags?: Json | null
           timeline?: string | null
           title: string
           updated_at?: string
@@ -115,9 +119,11 @@ export type Database = {
         Update: {
           category?: string | null
           checklist?: Json | null
+          collaborators?: Json | null
           created_at?: string
           id?: string
           notes?: string
+          tags?: Json | null
           timeline?: string | null
           title?: string
           updated_at?: string
@@ -198,12 +204,14 @@ export type Database = {
       focus_areas: {
         Row: {
           checklist: Json | null
+          collaborators: Json | null
           created_at: string
           deadline: string | null
           description: string | null
           id: string
           progress_percent: number
           quarter: Database["public"]["Enums"]["quarter_type"] | null
+          tags: Json | null
           title: string
           updated_at: string
           user_id: string
@@ -211,12 +219,14 @@ export type Database = {
         }
         Insert: {
           checklist?: Json | null
+          collaborators?: Json | null
           created_at?: string
           deadline?: string | null
           description?: string | null
           id?: string
           progress_percent?: number
           quarter?: Database["public"]["Enums"]["quarter_type"] | null
+          tags?: Json | null
           title: string
           updated_at?: string
           user_id: string
@@ -224,12 +234,14 @@ export type Database = {
         }
         Update: {
           checklist?: Json | null
+          collaborators?: Json | null
           created_at?: string
           deadline?: string | null
           description?: string | null
           id?: string
           progress_percent?: number
           quarter?: Database["public"]["Enums"]["quarter_type"] | null
+          tags?: Json | null
           title?: string
           updated_at?: string
           user_id?: string
