@@ -21,6 +21,7 @@ import { SearchSortHeader } from '@/components/ui/search-sort-header';
 import { useSearch } from '@/hooks/useSearch';
 import { CollaboratorSelector } from '@/components/ProgressTracker/CollaboratorSelector';
 import { AssignedFocusAreas } from '@/components/ProgressTracker/AssignedFocusAreas';
+import { FocusAreasList } from '@/components/ProgressTracker/FocusAreasList';
 
 type QuarterType = 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
@@ -602,139 +603,20 @@ const ProgressTracker = () => {
                   searchPlaceholder="Search focus areas..."
                 />
 
-                <div className="grid gap-6">
-                  {loading && focusAreas.length === 0 ? (
-                    <Card>
-                      <CardContent className="flex items-center justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                      </CardContent>
-                    </Card>
-                  ) : focusAreas.length === 0 ? (
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        <Target className="h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No focus areas yet</h3>
-                        <p className="text-gray-600 text-center mb-4">
-                          Create your first focus area to start tracking your progress and goals.
-                        </p>
-                        <Button onClick={() => { resetForm(); setShowDialog(true); }}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Focus Area
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    filteredFocusAreas.map((area) => {
-                      const completedItems = area.checklist.filter(item => item.completed).length;
-                      const totalItems = area.checklist.length;
-                      
-                      return (
-                        <Card key={area.id}>
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg">{area.title}</CardTitle>
-                                {area.description && (
-                                  <CardDescription className="mt-2">
-                                    {area.description}
-                                  </CardDescription>
-                                )}
-                                <div className="flex flex-wrap items-center gap-2 mt-3">
-                                  {area.quarter && area.year && (
-                                    <Badge variant="outline">{area.quarter} {area.year}</Badge>
-                                  )}
-                                  {area.deadline && (
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <Calendar className="h-4 w-4 mr-1" />
-                                      {new Date(area.deadline).toLocaleDateString()}
-                                    </div>
-                                  )}
-                                  {totalItems > 0 && (
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <CheckSquare className="h-4 w-4 mr-1" />
-                                      {completedItems}/{totalItems} completed
-                                    </div>
-                                  )}
-                                  {area.collaborators.length > 0 && (
-                                    <div className="flex items-center text-sm text-gray-500">
-                                      <Users className="h-4 w-4 mr-1" />
-                                      {area.collaborators.length} collaborator{area.collaborators.length !== 1 ? 's' : ''}
-                                    </div>
-                                  )}
-                                </div>
-                                {area.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {area.tags.map(tag => (
-                                      <Badge key={tag} variant="secondary" className="text-xs">
-                                        <Tag className="h-3 w-3 mr-1" />
-                                        {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(area)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(area.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              <div>
-                                <div className="flex items-center justify-between text-sm mb-2">
-                                  <span>Progress</span>
-                                  <span>{area.progress_percent}%</span>
-                                </div>
-                                <Progress value={area.progress_percent} className="h-2" />
-                              </div>
-                              
-                              {area.checklist.length > 0 && (
-                                <div>
-                                  <h4 className="font-medium mb-2">Action Items</h4>
-                                  <div className="space-y-1">
-                                    {area.checklist.map((item, index) => (
-                                      <div key={index} className="flex items-center justify-between text-sm p-2 border rounded">
-                                        <div className="flex items-center space-x-2">
-                                          <Checkbox checked={item.completed} disabled />
-                                          <span className={item.completed ? 'line-through text-gray-500' : ''}>
-                                            {item.title}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                          {item.deadline && (
-                                            <span>Due: {new Date(item.deadline).toLocaleDateString()}</span>
-                                          )}
-                                          {item.completed && item.completed_at && (
-                                            <span className="text-green-600">
-                                              ✓ {new Date(item.completed_at).toLocaleDateString()}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  )}
-                </div>
+                {loading ? (
+                  <Card>
+                    <CardContent className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <FocusAreasList
+                    focusAreas={filteredFocusAreas}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onRefresh={fetchFocusAreas}
+                  />
+                )}
               </TabsContent>
               
               <TabsContent value="assigned-areas">

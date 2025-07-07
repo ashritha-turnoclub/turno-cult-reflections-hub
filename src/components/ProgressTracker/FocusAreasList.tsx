@@ -1,12 +1,10 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, CheckSquare, Users, Eye, Edit, Tag } from "lucide-react";
+import { Edit, Trash2, Calendar, CheckSquare, Tag, Check } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +22,7 @@ interface Collaborator {
   permission: 'view' | 'edit';
 }
 
-interface AssignedFocusArea {
+interface FocusArea {
   id: string;
   title: string;
   description: string | null;
@@ -36,133 +34,25 @@ interface AssignedFocusArea {
   tags: string[];
   collaborators: Collaborator[];
   created_at: string;
+  updated_at: string;
   user_id: string;
-  owner_name?: string;
 }
 
-export const AssignedFocusAreas = () => {
+interface FocusAreasListProps {
+  focusAreas: FocusArea[];
+  onEdit: (area: FocusArea) => void;
+  onDelete: (areaId: string) => void;
+  onRefresh: () => void;
+}
+
+export const FocusAreasList = ({ focusAreas, onEdit, onDelete, onRefresh }: FocusAreasListProps) => {
   const { userProfile } = useAuth();
   const { toast } = useToast();
-  const [assignedAreas, setAssignedAreas] = useState<AssignedFocusArea[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (userProfile?.id) {
-      fetchAssignedFocusAreas();
-    }
-  }, [userProfile]);
-
-  const fetchAssignedFocusAreas = async () => {
-    try {
-      setLoading(true);
-      // Get all focus areas and filter collaborators on the client side for now
-      // This is more reliable than complex JSON filtering in Supabase
-      const { data, error } = await supabase
-        .from('focus_areas')
-        .select(`
-          *,
-          users!focus_areas_user_id_fkey(name)
-        `)
-        .neq('user_id', userProfile?.id); // Exclude user's own areas
-
-      if (error) throw error;
-
-      const transformedAreas: AssignedFocusArea[] = (data || [])
-        .map(area => {
-          // Cast to any to access new fields that aren't in generated types yet
-          const areaWithNewFields = area as any;
-          
-          let checklist: ActionItem[] = [];
-          let tags: string[] = [];
-          let collaborators: Collaborator[] = [];
-
-          // Parse checklist
-          if (areaWithNewFields.checklist) {
-            try {
-              const parsed = typeof areaWithNewFields.checklist === 'string' 
-                ? JSON.parse(areaWithNewFields.checklist) 
-                : areaWithNewFields.checklist;
-              checklist = Array.isArray(parsed) 
-                ? parsed.map((item: any) => 
-                    typeof item === 'string' 
-                      ? { title: item, completed: false }
-                      : item
-                  )
-                : [];
-            } catch (e) {
-              console.error('Error parsing checklist:', e);
-              checklist = [];
-            }
-          }
-
-          // Parse tags
-          if (areaWithNewFields.tags) {
-            try {
-              const parsed = typeof areaWithNewFields.tags === 'string' 
-                ? JSON.parse(areaWithNewFields.tags) 
-                : areaWithNewFields.tags;
-              tags = Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-              console.error('Error parsing tags:', e);
-              tags = [];
-            }
-          }
-
-          // Parse collaborators
-          if (areaWithNewFields.collaborators) {
-            try {
-              const parsed = typeof areaWithNewFields.collaborators === 'string' 
-                ? JSON.parse(areaWithNewFields.collaborators) 
-                : areaWithNewFields.collaborators;
-              collaborators = Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-              console.error('Error parsing collaborators:', e);
-              collaborators = [];
-            }
-          }
-
-          return {
-            ...area,
-            checklist,
-            tags,
-            collaborators,
-            owner_name: areaWithNewFields.users?.name || 'Unknown'
-          };
-        })
-        .filter(area => {
-          // Filter client-side to find areas where user is a collaborator
-          return area.collaborators.some(collaborator => 
-            collaborator.user_id === userProfile?.id
-          );
-        });
-
-      setAssignedAreas(transformedAreas);
-    } catch (error) {
-      console.error('Error fetching assigned focus areas:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load assigned focus areas.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const updateActionItem = async (areaId: string, itemIndex: number, field: keyof ActionItem, value: string | boolean) => {
     try {
-      const area = assignedAreas.find(a => a.id === areaId);
+      const area = focusAreas.find(a => a.id === areaId);
       if (!area) return;
-
-      const userCollaboration = area.collaborators.find(c => c.user_id === userProfile?.id);
-      if (!userCollaboration || userCollaboration.permission !== 'edit') {
-        toast({
-          variant: "destructive",
-          title: "Permission Denied",
-          description: "You don't have edit permission for this focus area.",
-        });
-        return;
-      }
 
       const updatedChecklist = area.checklist.map((item, i) => 
         i === itemIndex 
@@ -194,7 +84,7 @@ export const AssignedFocusAreas = () => {
         description: "Action item updated successfully.",
       });
 
-      fetchAssignedFocusAreas();
+      onRefresh();
     } catch (error) {
       console.error('Error updating action item:', error);
       toast({
@@ -205,24 +95,14 @@ export const AssignedFocusAreas = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (assignedAreas.length === 0) {
+  if (focusAreas.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No assigned focus areas</h3>
+          <CheckSquare className="h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No focus areas found</h3>
           <p className="text-gray-600 text-center">
-            You haven't been assigned to any focus areas yet.
+            Create your first focus area to start tracking your progress.
           </p>
         </CardContent>
       </Card>
@@ -231,9 +111,7 @@ export const AssignedFocusAreas = () => {
 
   return (
     <div className="space-y-6">
-      {assignedAreas.map((area) => {
-        const userCollaboration = area.collaborators.find(c => c.user_id === userProfile?.id);
-        const canEdit = userCollaboration?.permission === 'edit';
+      {focusAreas.map((area) => {
         const completedItems = area.checklist.filter(item => item.completed).length;
         const totalItems = area.checklist.length;
 
@@ -242,20 +120,13 @@ export const AssignedFocusAreas = () => {
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-lg flex items-center">
-                    {area.title}
-                    <Badge variant="outline" className="ml-2">
-                      {canEdit ? <Edit className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
-                      {canEdit ? 'Edit Access' : 'View Only'}
-                    </Badge>
-                  </CardTitle>
+                  <CardTitle className="text-lg">{area.title}</CardTitle>
                   {area.description && (
                     <CardDescription className="mt-2">
                       {area.description}
                     </CardDescription>
                   )}
                   <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <Badge variant="secondary">Owner: {area.owner_name}</Badge>
                     {area.quarter && area.year && (
                       <Badge variant="outline">{area.quarter} {area.year}</Badge>
                     )}
@@ -283,6 +154,22 @@ export const AssignedFocusAreas = () => {
                     </div>
                   )}
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(area)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(area.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -304,8 +191,7 @@ export const AssignedFocusAreas = () => {
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               checked={item.completed}
-                              onCheckedChange={(checked) => canEdit && updateActionItem(area.id, index, 'completed', checked as boolean)}
-                              disabled={!canEdit}
+                              onCheckedChange={(checked) => updateActionItem(area.id, index, 'completed', checked as boolean)}
                             />
                             <span className={`flex-1 ${item.completed ? 'line-through text-gray-500' : ''}`}>
                               {item.title}
