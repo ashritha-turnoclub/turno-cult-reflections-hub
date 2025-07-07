@@ -228,7 +228,7 @@ export const AssignedFocusAreas = () => {
           <Users className="h-16 w-16 text-gray-300 mb-4" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No assigned focus areas</h3>
           <p className="text-gray-500 max-w-md">
-            You haven't been assigned to any focus areas yet. Check back later or contact your team lead.
+            You haven't been assigned to any focus areas yet. Focus areas need to have collaborators added by their owners to appear here.
           </p>
         </CardContent>
       </Card>
