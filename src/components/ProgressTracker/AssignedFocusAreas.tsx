@@ -4,9 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, CheckSquare, Users, Eye, Edit, Tag } from "lucide-react";
+import { Calendar, CheckSquare, Users, Eye, Edit, Tag, Clock } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,21 +53,26 @@ export const AssignedFocusAreas = () => {
   const fetchAssignedFocusAreas = async () => {
     try {
       setLoading(true);
-      // Get all focus areas and filter collaborators on the client side for now
-      // This is more reliable than complex JSON filtering in Supabase
-      const { data, error } = await supabase
+      
+      // First get all focus areas where user is not the owner
+      const { data: allAreas, error } = await supabase
         .from('focus_areas')
         .select(`
           *,
           users!focus_areas_user_id_fkey(name)
         `)
-        .neq('user_id', userProfile?.id); // Exclude user's own areas
+        .neq('user_id', userProfile?.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      const transformedAreas: AssignedFocusArea[] = (data || [])
+      console.log('All areas fetched:', allAreas?.length || 0);
+
+      // Filter and transform areas where user is a collaborator
+      const transformedAreas: AssignedFocusArea[] = (allAreas || [])
         .map(area => {
-          // Cast to any to access new fields that aren't in generated types yet
           const areaWithNewFields = area as any;
           
           let checklist: ActionItem[] = [];
@@ -130,12 +133,15 @@ export const AssignedFocusAreas = () => {
           };
         })
         .filter(area => {
-          // Filter client-side to find areas where user is a collaborator
-          return area.collaborators.some(collaborator => 
+          // Check if current user is in collaborators
+          const isCollaborator = area.collaborators.some(collaborator => 
             collaborator.user_id === userProfile?.id
           );
+          console.log(`Area "${area.title}" - User ${userProfile?.id} is collaborator:`, isCollaborator);
+          return isCollaborator;
         });
 
+      console.log('Assigned areas after filtering:', transformedAreas.length);
       setAssignedAreas(transformedAreas);
     } catch (error) {
       console.error('Error fetching assigned focus areas:', error);
@@ -207,8 +213,8 @@ export const AssignedFocusAreas = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
+      <Card className="border-0 shadow-sm">
+        <CardContent className="flex items-center justify-center py-16">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
         </CardContent>
       </Card>
@@ -217,12 +223,12 @@ export const AssignedFocusAreas = () => {
 
   if (assignedAreas.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No assigned focus areas</h3>
-          <p className="text-gray-600 text-center">
-            You haven't been assigned to any focus areas yet.
+      <Card className="border-0 shadow-sm">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <Users className="h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No assigned focus areas</h3>
+          <p className="text-gray-500 max-w-md">
+            You haven't been assigned to any focus areas yet. Check back later or contact your team lead.
           </p>
         </CardContent>
       </Card>
@@ -238,44 +244,64 @@ export const AssignedFocusAreas = () => {
         const totalItems = area.checklist.length;
 
         return (
-          <Card key={area.id}>
-            <CardHeader>
+          <Card key={area.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg flex items-center">
-                    {area.title}
-                    <Badge variant="outline" className="ml-2">
-                      {canEdit ? <Edit className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
-                      {canEdit ? 'Edit Access' : 'View Only'}
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-xl text-gray-800">{area.title}</CardTitle>
+                    <Badge variant={canEdit ? "default" : "secondary"} className="text-xs">
+                      {canEdit ? (
+                        <>
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit Access
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Only
+                        </>
+                      )}
                     </Badge>
-                  </CardTitle>
+                  </div>
+                  
                   {area.description && (
-                    <CardDescription className="mt-2">
+                    <CardDescription className="text-gray-600 leading-relaxed">
                       {area.description}
                     </CardDescription>
                   )}
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    <Badge variant="secondary">Owner: {area.owner_name}</Badge>
+                  
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      <Users className="h-3 w-3 mr-1" />
+                      Owner: {area.owner_name}
+                    </Badge>
+                    
                     {area.quarter && area.year && (
-                      <Badge variant="outline">{area.quarter} {area.year}</Badge>
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                        {area.quarter} {area.year}
+                      </Badge>
                     )}
+                    
                     {area.deadline && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(area.deadline).toLocaleDateString()}
+                      <div className="flex items-center text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Due: {new Date(area.deadline).toLocaleDateString()}
                       </div>
                     )}
+                    
                     {totalItems > 0 && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CheckSquare className="h-4 w-4 mr-1" />
+                      <div className="flex items-center text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                        <CheckSquare className="h-3 w-3 mr-1" />
                         {completedItems}/{totalItems} completed
                       </div>
                     )}
                   </div>
+                  
                   {area.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-2">
                       {area.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
+                        <Badge key={tag} variant="secondary" className="text-xs bg-gray-100 text-gray-700">
                           <Tag className="h-3 w-3 mr-1" />
                           {tag}
                         </Badge>
@@ -285,44 +311,51 @@ export const AssignedFocusAreas = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-2">
+            
+            <CardContent className="pt-0">
+              <div className="space-y-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between text-sm font-medium text-gray-700 mb-3">
                     <span>Progress</span>
-                    <span>{area.progress_percent}%</span>
+                    <span className="text-lg">{area.progress_percent}%</span>
                   </div>
-                  <Progress value={area.progress_percent} className="h-2" />
+                  <Progress value={area.progress_percent} className="h-3" />
                 </div>
                 
                 {area.checklist.length > 0 && (
                   <div>
-                    <h4 className="font-medium mb-2">Action Items</h4>
-                    <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                      <CheckSquare className="h-4 w-4 mr-2" />
+                      Action Items
+                    </h4>
+                    <div className="space-y-3">
                       {area.checklist.map((item, index) => (
-                        <div key={index} className="space-y-2 p-3 border rounded-lg">
-                          <div className="flex items-center space-x-2">
+                        <div key={index} className="bg-white border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start space-x-3">
                             <Checkbox
                               checked={item.completed}
                               onCheckedChange={(checked) => canEdit && updateActionItem(area.id, index, 'completed', checked as boolean)}
                               disabled={!canEdit}
+                              className="mt-1"
                             />
-                            <span className={`flex-1 ${item.completed ? 'line-through text-gray-500' : ''}`}>
-                              {item.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 ml-6">
-                            {item.deadline && (
-                              <div className="flex items-center text-sm text-gray-500">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                Due: {new Date(item.deadline).toLocaleDateString()}
-                              </div>
-                            )}
-                            {item.completed && item.completed_at && (
-                              <span className="text-sm text-green-600">
-                                Completed on {new Date(item.completed_at).toLocaleDateString()}
+                            <div className="flex-1 space-y-2">
+                              <span className={`block ${item.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                                {item.title}
                               </span>
-                            )}
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                {item.deadline && (
+                                  <div className="flex items-center">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Due: {new Date(item.deadline).toLocaleDateString()}
+                                  </div>
+                                )}
+                                {item.completed && item.completed_at && (
+                                  <span className="text-green-600 font-medium">
+                                    ✓ Completed {new Date(item.completed_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}

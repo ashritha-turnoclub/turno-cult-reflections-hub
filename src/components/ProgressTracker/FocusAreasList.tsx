@@ -1,10 +1,11 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Calendar, CheckSquare, Tag, Check } from "lucide-react";
+import { Edit, Trash2, Calendar, CheckSquare, Tag, Clock, Target } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -97,12 +98,12 @@ export const FocusAreasList = ({ focusAreas, onEdit, onDelete, onRefresh }: Focu
 
   if (focusAreas.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <CheckSquare className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No focus areas found</h3>
-          <p className="text-gray-600 text-center">
-            Create your first focus area to start tracking your progress.
+      <Card className="border-0 shadow-sm">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <Target className="h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No focus areas found</h3>
+          <p className="text-gray-500 max-w-md">
+            Create your first focus area to start tracking your progress and achieving your goals.
           </p>
         </CardContent>
       </Card>
@@ -116,37 +117,44 @@ export const FocusAreasList = ({ focusAreas, onEdit, onDelete, onRefresh }: Focu
         const totalItems = area.checklist.length;
 
         return (
-          <Card key={area.id}>
-            <CardHeader>
+          <Card key={area.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{area.title}</CardTitle>
+                <div className="flex-1 space-y-3">
+                  <CardTitle className="text-xl text-gray-800">{area.title}</CardTitle>
+                  
                   {area.description && (
-                    <CardDescription className="mt-2">
+                    <CardDescription className="text-gray-600 leading-relaxed">
                       {area.description}
                     </CardDescription>
                   )}
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                  
+                  <div className="flex flex-wrap items-center gap-3">
                     {area.quarter && area.year && (
-                      <Badge variant="outline">{area.quarter} {area.year}</Badge>
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                        {area.quarter} {area.year}
+                      </Badge>
                     )}
+                    
                     {area.deadline && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(area.deadline).toLocaleDateString()}
+                      <div className="flex items-center text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Due: {new Date(area.deadline).toLocaleDateString()}
                       </div>
                     )}
+                    
                     {totalItems > 0 && (
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CheckSquare className="h-4 w-4 mr-1" />
+                      <div className="flex items-center text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                        <CheckSquare className="h-3 w-3 mr-1" />
                         {completedItems}/{totalItems} completed
                       </div>
                     )}
                   </div>
+                  
                   {area.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-2">
                       {area.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
+                        <Badge key={tag} variant="secondary" className="text-xs bg-gray-100 text-gray-700">
                           <Tag className="h-3 w-3 mr-1" />
                           {tag}
                         </Badge>
@@ -154,11 +162,13 @@ export const FocusAreasList = ({ focusAreas, onEdit, onDelete, onRefresh }: Focu
                     </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2">
+                
+                <div className="flex items-center space-x-2 ml-4">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(area)}
+                    className="hover:bg-gray-100"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -166,49 +176,57 @@ export const FocusAreasList = ({ focusAreas, onEdit, onDelete, onRefresh }: Focu
                     variant="ghost"
                     size="sm"
                     onClick={() => onDelete(area.id)}
+                    className="hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-2">
+            
+            <CardContent className="pt-0">
+              <div className="space-y-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between text-sm font-medium text-gray-700 mb-3">
                     <span>Progress</span>
-                    <span>{area.progress_percent}%</span>
+                    <span className="text-lg">{area.progress_percent}%</span>
                   </div>
-                  <Progress value={area.progress_percent} className="h-2" />
+                  <Progress value={area.progress_percent} className="h-3" />
                 </div>
                 
                 {area.checklist.length > 0 && (
                   <div>
-                    <h4 className="font-medium mb-2">Action Items</h4>
-                    <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                      <CheckSquare className="h-4 w-4 mr-2" />
+                      Action Items
+                    </h4>
+                    <div className="space-y-3">
                       {area.checklist.map((item, index) => (
-                        <div key={index} className="space-y-2 p-3 border rounded-lg">
-                          <div className="flex items-center space-x-2">
+                        <div key={index} className="bg-white border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start space-x-3">
                             <Checkbox
                               checked={item.completed}
                               onCheckedChange={(checked) => updateActionItem(area.id, index, 'completed', checked as boolean)}
+                              className="mt-1"
                             />
-                            <span className={`flex-1 ${item.completed ? 'line-through text-gray-500' : ''}`}>
-                              {item.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 ml-6">
-                            {item.deadline && (
-                              <div className="flex items-center text-sm text-gray-500">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                Due: {new Date(item.deadline).toLocaleDateString()}
-                              </div>
-                            )}
-                            {item.completed && item.completed_at && (
-                              <span className="text-sm text-green-600">
-                                Completed on {new Date(item.completed_at).toLocaleDateString()}
+                            <div className="flex-1 space-y-2">
+                              <span className={`block ${item.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                                {item.title}
                               </span>
-                            )}
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                {item.deadline && (
+                                  <div className="flex items-center">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Due: {new Date(item.deadline).toLocaleDateString()}
+                                  </div>
+                                )}
+                                {item.completed && item.completed_at && (
+                                  <span className="text-green-600 font-medium">
+                                    ✓ Completed {new Date(item.completed_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
